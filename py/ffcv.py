@@ -50,19 +50,19 @@ for imnum in ['a', 'r']:
     b,g,r=readsplit(imname)
     n=3
     features = channelops(g, n)
-    features = np.hstack((features,channelops(r, n)))
-    for n in [13]:
+    #features = np.hstack((features,channelops(r, n)))
+    for n in [7, 13]:
         features = np.hstack((features,channelops(g, n)))
-        features = np.hstack((features,channelops(r, n)))
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    ret, labels, centers = cv2.kmeans(features, 4, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
-    labels = labels.reshape(g.shape)
-    B=(labels==0)*255
-    G=(labels==1)*255
-    R=(labels==2)*255
-    segment=np.uint8(cv2.merge((B,G,R)))
-    cv2.imshow('segment',np.uint8(segment))
-    cv2.waitKey(0)
+        #features = np.hstack((features,channelops(r, n)))
+    ##criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    ##ret, labels, centers = cv2.kmeans(features, 4, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
+    ##labels = labels.reshape(g.shape)
+    ##B=(labels==0)*255
+    ##G=(labels==1)*255
+    ##R=(labels==2)*255
+    ##segment=np.uint8(cv2.merge((B,G,R)))
+    ##cv2.imshow('segment',np.uint8(segment))
+    ##cv2.waitKey(0)
     #cv2.destroyAllWindows()
     em = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
     ret, ll, labels, probs = em.train(features)
