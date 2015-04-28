@@ -34,7 +34,7 @@ def readsplit(imname):
     h,s,v = cv2.split(hsv)
     b,g,r = cv2.split(img)
     
-    return h, s, v
+    return h, s, v, img
     
 def canny_contours(c, n):
     edges = cv2.Canny(c,25,50,n)
@@ -56,15 +56,24 @@ def canny_contours(c, n):
 
     cv2.destroyAllWindows()
 
-    return edges
+    contours, hierarchy = cv2.findContours(edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+
+    return contours
 
 def em_test(features):
     em = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
     ret, ll, labels, probs = em.train(features)
-    labels = labels.reshape(g.shape)
+
+    return labels
+
+def labels_to_rgb(labels,rows,cols)
     B=(labels==0)*255
     G=(labels==1)*255
     R=(labels==2)*255
+    B=B.reshape((rows,cols))
+    G=G.reshape((rows,cols))
+    R=R.reshape((rows,cols))
+    
     segment=np.uint8(cv2.merge((B,G,R)))
     cv2.imshow('segment',np.uint8(segment))
     cv2.waitKey(0)
@@ -74,26 +83,59 @@ def em_test(features):
 
 for imnum in ['a', 'r']:
     imname = "../images/{}0.jpg".format(imnum) 
-    c1,c2,c3=readsplit(imname)
+    c1,c2,c3,img=readsplit(imname)
     n=3
 
     bilat = cv2.bilateralFilter(c1, n, 5, 5)
-    
     features = channelops(bilat, n)
-    edges = canny_contours(c1, n)
-    cv2.imshow('image',c1)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    #contours = canny_contours(c1, n)
+    #cv2.drawContours(img, contours, -1, (255,255,255), 3)
+    #cv2.imshow('image',img)
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+    labels=em_test(features)
     
-    contours, hierarchy = cv2.findContours(edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(c1, contours, -1, (0,255,0), 3)
-    
-    #for n in [7, 13]:
-     #   features = np.hstack((features,channelops(c1, n)))
-     #   edges = canny_contours(c1, n)
-    
-    
+labelsname = "../images/al0.jpg" 
+trainname = "../images/at0.jpg" 
+testname = "../images/a0.jpg" 
+
+labels = cv2.imread(labelsname)
+l1,l2,l3 = cv2.split(labels)
+l1.copyTo(l)
+l(l1==255)=0
+l(l2==255)=1
+l(l3==255)=2
+
+svm_params = dict( kernel_type = cv2.SVM_LINEAR,
+                    svm_type = cv2.SVM_C_SVC,
+                    C=2.67, gamma=5.383 )
+
+c1,c2,c3,img=readsplit(trainname)
+n=7
+
+bilat = cv2.bilateralFilter(c1, n, 5, 5)
+features = channelops(bilat, n)
+
+bilat = cv2.bilateralFilter(c3, n, 5, 5)
+features = np.hstack((features,channelops(bilat, n)))
+
+rows, cols = features.shape
+l=l.reshape((rows,1))
+
+svm = cv2.SVM()
+svm.train(features,l, params=svm_params)
+svm.save('svm_data.dat')
 
 
+c1,c2,c3,img=readsplit(testname)
+n=7
+
+bilat = cv2.bilateralFilter(c1, n, 5, 5)
+features = channelops(bilat, n)
+
+bilat = cv2.bilateralFilter(c3, n, 5, 5)
+features = np.hstack((features,channelops(bilat, n)))
+
+result = svm.predict_all(features)
 
     
