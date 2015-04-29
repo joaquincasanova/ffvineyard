@@ -13,9 +13,9 @@ def channelops(mat, n):
     
     mat=np.float32(mat)
     mu = cv2.blur(mat,(n,n))
-    mat2=cv2.blur(np.float64(mat*mat),(n,n))
-    mu2=np.float64(mu*mu)
-    sd = np.float32(cv2.sqrt((mat2-mu2)))
+    mdiff=mu-mat
+    mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
+    sd = np.float32(cv2.sqrt(mat2))
     mat=normalize(mat)
     mu=normalize(mu)
     sd=normalize(sd)
@@ -24,7 +24,7 @@ def channelops(mat, n):
     mu=mu.reshape((np.size(mu)))
     sd=sd.reshape((np.size(sd)))
     
-    features=np.transpose(np.array([mat, mu]))#, sd]))
+    features=np.transpose(np.array([mu, sd]))
     return features
 
 def readsplit(imname):
@@ -61,6 +61,7 @@ def canny_contours(c, n):
     return contours
 
 def labels_to_rgb(labels,rows,cols):
+    
     B=(labels==0)*255
     G=(labels==1)*255
     R=(labels==2)*255
@@ -100,15 +101,16 @@ labels = rgb_to_labels(segment)
 ##                    svm_type = cv2.SVM_C_SVC,
 ##                    C=1.0,
 ##                    gamma=5.383 )
-
+#svm = cv2.SVM()
+#knn = cv2.KNearest()
 #em = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
-#ret, ll, labels, probs = em.train(train)
+#nb = cv2.NormalBayesClassifier()
 
-knn = cv2.KNearest()
-knn.train(train,labels)
-##svm = cv2.SVM()
-##svm.train(features,labels, params=svm_params)
-##svm.save('svm_data.dat')
+#nb.train(train,labels)
+#ret, ll, labels, probs = em.train(test)
+#knn.train(train,labels)
+#svm.train(train,labels, params=svm_params)
+#svm.save('svm_data.dat')
 
 
 
@@ -116,18 +118,20 @@ c1,c2,c3,img=readsplit(testname)
 n=7
 rows, cols = c1.shape
 
-cv2.namedWindow('image')
-cv2.imshow('image',img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+#cv2.namedWindow('image')
+#cv2.imshow('image',img)
+#cv2.waitKey(0)
+#cv2.destroyAllWindows()
 
 test = channelops(c1, n)
 test = np.hstack((test,channelops(c3, n)))
 
-ret,result,neighbours,dist = knn.find_nearest(test,k=4)
+#ret, result,neighbours,dist = knn.find_nearest(test,k=4)
 #result = svm.predict_all(features)
 #ret, result = em.predict(test)
+ret, ll, result, probs = em.train(test)
 
+#ret, result=nb.predict(test)
 segment=labels_to_rgb(result,rows,cols)
 cv2.namedWindow('segments')
 cv2.imshow('segments',segment)
