@@ -24,7 +24,7 @@ def channelops(mat, n):
     mu=mu.reshape((np.size(mu)))
     sd=sd.reshape((np.size(sd)))
     
-    features=np.transpose(np.array([mat, mu, sd]))
+    features=np.transpose(np.array([mat, mu]))#, sd]))
     return features
 
 def readsplit(imname):
@@ -60,13 +60,7 @@ def canny_contours(c, n):
 
     return contours
 
-def em_test(features):
-    em = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
-    ret, ll, labels, probs = em.train(features)
-
-    return labels
-
-def labels_to_rgb(labels,rows,cols)
+def labels_to_rgb(labels,rows,cols):
     B=(labels==0)*255
     G=(labels==1)*255
     R=(labels==2)*255
@@ -75,67 +69,72 @@ def labels_to_rgb(labels,rows,cols)
     R=R.reshape((rows,cols))
     
     segment=np.uint8(cv2.merge((B,G,R)))
-    cv2.imshow('segment',np.uint8(segment))
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
     return segment
 
-for imnum in ['a', 'r']:
-    imname = "../images/{}0.jpg".format(imnum) 
-    c1,c2,c3,img=readsplit(imname)
-    n=3
-
-    bilat = cv2.bilateralFilter(c1, n, 5, 5)
-    features = channelops(bilat, n)
-    #contours = canny_contours(c1, n)
-    #cv2.drawContours(img, contours, -1, (255,255,255), 3)
-    #cv2.imshow('image',img)
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    labels=em_test(features)
+def rgb_to_labels(segment):
+    B,G,R = cv2.split(segment)
+   
+    l=(B==255)*0
+    l=(G==255)*1
+    l=(R==255)*2
+    l=(np.logical_and(np.logical_and(B==0, G==0),R==0))*3
+    labels=np.float32(l.reshape(np.size(B))[:,np.newaxis])
+    
+    return labels
     
 labelsname = "../images/al0.jpg" 
 trainname = "../images/at0.jpg" 
 testname = "../images/a0.jpg" 
 
-labels = cv2.imread(labelsname)
-l1,l2,l3 = cv2.split(labels)
-l1.copyTo(l)
-l(l1==255)=0
-l(l2==255)=1
-l(l3==255)=2
-
-svm_params = dict( kernel_type = cv2.SVM_LINEAR,
-                    svm_type = cv2.SVM_C_SVC,
-                    C=2.67, gamma=5.383 )
-
 c1,c2,c3,img=readsplit(trainname)
 n=7
 
-bilat = cv2.bilateralFilter(c1, n, 5, 5)
-features = channelops(bilat, n)
+train = channelops(c1, n)
+train = np.hstack((train,channelops(c3, n)))
 
-bilat = cv2.bilateralFilter(c3, n, 5, 5)
-features = np.hstack((features,channelops(bilat, n)))
+segment = cv2.imread(labelsname)
+labels = rgb_to_labels(segment)
 
-rows, cols = features.shape
-l=l.reshape((rows,1))
+##svm_params = dict( kernel_type = cv2.SVM_LINEAR,
+##                    svm_type = cv2.SVM_C_SVC,
+##                    C=1.0,
+##                    gamma=5.383 )
 
-svm = cv2.SVM()
-svm.train(features,l, params=svm_params)
-svm.save('svm_data.dat')
+#em = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
+#ret, ll, labels, probs = em.train(train)
+
+knn = cv2.KNearest()
+knn.train(train,labels)
+##svm = cv2.SVM()
+##svm.train(features,labels, params=svm_params)
+##svm.save('svm_data.dat')
+
 
 
 c1,c2,c3,img=readsplit(testname)
 n=7
+rows, cols = c1.shape
 
-bilat = cv2.bilateralFilter(c1, n, 5, 5)
-features = channelops(bilat, n)
+cv2.namedWindow('image')
+cv2.imshow('image',img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
 
-bilat = cv2.bilateralFilter(c3, n, 5, 5)
-features = np.hstack((features,channelops(bilat, n)))
+test = channelops(c1, n)
+test = np.hstack((test,channelops(c3, n)))
 
-result = svm.predict_all(features)
+ret,result,neighbours,dist = knn.find_nearest(test,k=4)
+#result = svm.predict_all(features)
+#ret, result = em.predict(test)
+
+segment=labels_to_rgb(result,rows,cols)
+cv2.namedWindow('segments')
+cv2.imshow('segments',segment)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+    
+#
 
     
