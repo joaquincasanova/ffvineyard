@@ -12,6 +12,7 @@ def normalize(x):
 def channelops(mat, n):
     
     mat=np.float32(mat)
+    mat = cv2.bilateralFilter(mat, n, 1, 1)
     mu = cv2.blur(mat,(n,n))
     mdiff=mu-mat
     mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
@@ -23,8 +24,8 @@ def channelops(mat, n):
     mat=mat.reshape((np.size(mat)))
     mu=mu.reshape((np.size(mu)))
     sd=sd.reshape((np.size(sd)))
-    
-    features=np.transpose(np.array([mu, sd]))
+
+    features=np.transpose(np.array([mat, mu, sd]))
     return features
 
 def readsplit(imname):
@@ -33,7 +34,7 @@ def readsplit(imname):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h,s,v = cv2.split(hsv)
     b,g,r = cv2.split(img)
-    
+    ndvi = (r-b)/(r+b)
     return h, s, v, img
     
 def canny_contours(c, n):
@@ -76,76 +77,106 @@ def labels_to_rgb(labels,rows,cols):
 def rgb_to_labels(segment):
     B,G,R = cv2.split(segment)
    
-    l=(B==255)*0
-    l=(G==255)*1
-    l=(R==255)*2
-    l=(np.logical_and(np.logical_and(B==0, G==0),R==0))*3
+    l=(B==255)*0+(G==255)*1+(R==255)*2+(np.logical_and(np.logical_and(B==0, G==0),R==0))*3
     labels=np.float32(l.reshape(np.size(B))[:,np.newaxis])
     
     return labels
+
+def labels_to_rgb_2(labels,rows,cols):
     
+    R=np.uint8((labels==0)*255)
+    G=np.uint8((labels==1)*255)
+    B=np.uint8(np.zeros(G.shape))
+    B=B.reshape((rows,cols))
+    G=G.reshape((rows,cols))
+    R=R.reshape((rows,cols))
+    
+    segment=np.uint8(cv2.merge((B,G,R)))
+
+    return segment
+
+def rgb_to_labels_2(segment):
+    B,G,R = cv2.split(segment)
+   
+    l=(G<255)*0+(G==255)*1
+    labels=np.float32(l.reshape(np.size(G))[:,np.newaxis])
+    
+    return labels
+
+cv2.destroyAllWindows()
 labelsname = "../images/al0.jpg" 
 trainname = "../images/at0.jpg" 
 testname = "../images/a0.jpg" 
 
 c1,c2,c3,img=readsplit(trainname)
-n=13
+n=7
 
 train = channelops(c1, n)
 train = np.hstack((train,channelops(c3, n)))
 
 segment = cv2.imread(labelsname)
-labels = rgb_to_labels(segment)
-
-criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-##svm_params = dict( kernel_type = cv2.SVM_LINEAR,
-##                    svm_type = cv2.SVM_C_SVC,
-##                    C=1.0,
-##                    gamma=5.383 )
-#svm = cv2.SVM()
-#knn = cv2.KNearest()
-em = cv2.EM(4,cv2.EM_COV_MAT_SPHERICAL)
-#nb = cv2.NormalBayesClassifier()
-
-#nb.train(train,labels)
-#ret, ll, labels, probs = em.train(test)
-#knn.train(train,labels)
-#svm.train(train,labels, params=svm_params)
-#svm.save('svm_data.dat')
-
-
+labels = rgb_to_labels_2(segment)
 
 c1,c2,c3,img=readsplit(testname)
-rows, cols = c1.shape
-
-#cv2.namedWindow('image')
-#cv2.imshow('image',img)
-#cv2.waitKey(0)
-#cv2.destroyAllWindows()
-
 test = channelops(c1, n)
 test = np.hstack((test,channelops(c3, n)))
 
-#ret, result,neighbours,dist = knn.find_nearest(test,k=4)
-#result = svm.predict_all(features)
-#ret, result = em.predict(test)
-#ret, result=nb.predict(test)
+rows, cols = c1.shape
+cv2.namedWindow('image')
+cv2.imshow('image',img)
+cv2.waitKey(1)
+title0 = "segment "    
+criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+
+        
+svm_params = dict( kernel_type = cv2.SVM_RBF,
+                    svm_type = cv2.SVM_C_SVC,
+                    C=svcc,
+                    gamma=svcg)
+
+svm = cv2.SVM()
+svm.train_auto(train,labels,varIdx=[], samplesIdx=[])#, params=svm_params)
+svm.save('svm_data.dat')
+
+
+result = svm.predict_all(test)
+segment=labels_to_rgb_2(result,rows,cols)
+cv2.namedWindow("segment svm")
+cv2.imshow("segment svm",segment)
+cv2.waitKey(1)
+            
+
+      
+knn = cv2.KNearest()
+em = cv2.EM(2,cv2.EM_COV_MAT_DIAGONAL)
+nb = cv2.NormalBayesClassifier()
+
+nb.train(train,labels)
+knn.train(train,labels)
+
+for knnk in [5, 10, 15, 20, 25]:
+    ret, result,neighbours,dist = knn.find_nearest(test,k=knnk)
+    segment=labels_to_rgb_2(result,rows,cols)
+    cv2.namedWindow(title0 + "%u" % knnk)
+    cv2.imshow(title0 + "%u" % knnk,segment)
+    cv2.waitKey(1)
+
+ret, result=nb.predict(test)
+segment=labels_to_rgb_2(result,rows,cols)
+cv2.namedWindow('segments nb')
+cv2.imshow('segments nb',segment)
+cv2.waitKey(1)
 
 ret, ll, result, probs = em.train(test)
-segment=labels_to_rgb(result,rows,cols)
-cv2.namedWindow('segments')
-cv2.imshow('segments',segment)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+segment=labels_to_rgb_2(result,rows,cols)
+cv2.namedWindow('segments em')
+cv2.imshow('segments em',segment)
+cv2.waitKey(1)
 
-
-ret, result, centers = cv2.kmeans(test, 4, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
-segment=labels_to_rgb(result,rows,cols)
-cv2.namedWindow('segments')
-cv2.imshow('segments',segment)
-cv2.waitKey(0)
+ret, result, centers = cv2.kmeans(test, 2, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
+segment=labels_to_rgb_2(result,rows,cols)
+cv2.namedWindow('segments kmeans')
+cv2.imshow('segments kmeans',segment)
+cv2.waitKey(0)    
 cv2.destroyAllWindows()
-    
 #
-
-    
