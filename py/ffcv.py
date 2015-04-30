@@ -89,7 +89,7 @@ trainname = "../images/at0.jpg"
 testname = "../images/a0.jpg" 
 
 c1,c2,c3,img=readsplit(trainname)
-n=7
+n=13
 
 train = channelops(c1, n)
 train = np.hstack((train,channelops(c3, n)))
@@ -97,13 +97,14 @@ train = np.hstack((train,channelops(c3, n)))
 segment = cv2.imread(labelsname)
 labels = rgb_to_labels(segment)
 
+criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
 ##svm_params = dict( kernel_type = cv2.SVM_LINEAR,
 ##                    svm_type = cv2.SVM_C_SVC,
 ##                    C=1.0,
 ##                    gamma=5.383 )
 #svm = cv2.SVM()
 #knn = cv2.KNearest()
-#em = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
+em = cv2.EM(4,cv2.EM_COV_MAT_SPHERICAL)
 #nb = cv2.NormalBayesClassifier()
 
 #nb.train(train,labels)
@@ -115,7 +116,6 @@ labels = rgb_to_labels(segment)
 
 
 c1,c2,c3,img=readsplit(testname)
-n=7
 rows, cols = c1.shape
 
 #cv2.namedWindow('image')
@@ -129,15 +129,22 @@ test = np.hstack((test,channelops(c3, n)))
 #ret, result,neighbours,dist = knn.find_nearest(test,k=4)
 #result = svm.predict_all(features)
 #ret, result = em.predict(test)
-ret, ll, result, probs = em.train(test)
-
 #ret, result=nb.predict(test)
+
+ret, ll, result, probs = em.train(test)
 segment=labels_to_rgb(result,rows,cols)
 cv2.namedWindow('segments')
 cv2.imshow('segments',segment)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
+
+ret, result, centers = cv2.kmeans(test, 4, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
+segment=labels_to_rgb(result,rows,cols)
+cv2.namedWindow('segments')
+cv2.imshow('segments',segment)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
     
 #
 
