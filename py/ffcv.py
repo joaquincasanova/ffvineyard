@@ -43,7 +43,7 @@ def opening_adjust(mat):
 
     cv2.namedWindow('open')
     opening = cv2.morphologyEx(mat, cv2.MORPH_OPEN, kernel)
-    cv2.createTrackbar('n','open',0,191,nothing)
+    cv2.createTrackbar('n','open',0,50,nothing)
     while(1):
         cv2.imshow('open',opening)
         k = cv2.waitKey(1) & 0xFF
@@ -51,7 +51,7 @@ def opening_adjust(mat):
             break
 
         n = cv2.getTrackbarPos('n','open')
-        kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(n,n))
+        kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(2*n+1,2*n+1))
         opening = cv2.morphologyEx(mat, cv2.MORPH_OPEN, kernel)
 
     cv2.destroyAllWindows()
@@ -140,13 +140,18 @@ def labels_to_rgb_2(labels,rows,cols):
 
     return segment
 
-def rgb_to_labels_2(segment):
+def rgb_to_binary_2(segment):
     B,G,R = cv2.split(segment)
    
-    l=(G<255)*0+(G==255)*1
-    labels=np.float32(l.reshape(np.size(G))[:,np.newaxis])
+    labels=(G<255)*0+(G==255)*1
+    return labels
+
+def rgb_to_labels_2(segment):
+    l=rgb_to_binary_2(segment)
+    labels=np.float32(l.reshape(np.size(l))[:,np.newaxis])
     
     return labels
+
 
 cv2.destroyAllWindows()
 labelsname = "../images/al0.jpg" 
@@ -154,7 +159,10 @@ trainname = "../images/at0.jpg"
 testname = "../images/a0.jpg" 
 
 c1,c2,c3,img=readsplit(testname)
-bilat, n, sigC, sigD = bilat_adjust(c1)
+##bilat, n, sigC, sigD = bilat_adjust(c1)
+n=7
+sigC=190
+sigD=1
 test = channelops(c1, n, sigC, sigD)
 test = np.hstack((test,channelops(c3, n, sigC, sigD)))
 rows, cols = c1.shape
@@ -179,7 +187,7 @@ em2 = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
 ##svm_params = dict( kernel_type = cv2.SVM_RBF,
 ##                    svm_type = cv2.SVM_C_SVC)
 ##nb.train(train,labels)
-##knn.train(train,labels)
+knn.train(train,labels)
 
 ##varIdx=None
 ##samplesIdx=None
@@ -193,12 +201,12 @@ em2 = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
 ##cv2.imshow("segment svm",segment)
 ##cv2.waitKey(1)
 ##
-##knnk = 25
-##ret, result,neighbours,dist = knn.find_nearest(test,k=knnk)
-##segment=labels_to_rgb_2(result,rows,cols)
-##cv2.namedWindow("segment knn")
-##cv2.imshow("segment knn",segment)
-##cv2.waitKey(1)
+knnk = 25
+ret, result,neighbours,dist = knn.find_nearest(test,k=knnk)
+segment=labels_to_rgb_2(result,rows,cols)
+cv2.namedWindow("segment knn")
+cv2.imshow("segment knn",segment)
+cv2.waitKey(1)
 ##
 ##ret, result=nb.predict(test)
 ##segment=labels_to_rgb_2(result,rows,cols)
@@ -206,17 +214,17 @@ em2 = cv2.EM(4,cv2.EM_COV_MAT_DIAGONAL)
 ##cv2.imshow('segments nb',segment)
 ##cv2.waitKey(1)
 
-ret, ll, result, probs = em.train(test)
-segment=labels_to_rgb_2(result,rows,cols)
-cv2.namedWindow('segments em')
-cv2.imshow('segments em',segment)
-cv2.waitKey(1)
+##ret, ll, result, probs = em.train(test)
+##segment=labels_to_rgb_2(result,rows,cols)
+##cv2.namedWindow('segments em')
+##cv2.imshow('segments em',segment)
+##cv2.waitKey(1)
 
-ret, ll, result, probs = em2.train(test)
-segment=labels_to_rgb(result,rows,cols)
-cv2.namedWindow('segments em 4')
-cv2.imshow('segments em 4',segment)
-cv2.waitKey(1)
+##ret, ll, result, probs = em2.train(test)
+##segment=labels_to_rgb(result,rows,cols)
+##cv2.namedWindow('segments em 4')
+##cv2.imshow('segments em 4',segment)
+##cv2.waitKey(1)
 
 ##ret, result, centers = cv2.kmeans(test, 2, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
 ##segment=labels_to_rgb_2(result,rows,cols)
@@ -225,4 +233,5 @@ cv2.waitKey(1)
 ##cv2.waitKey(0)    
 ##cv2.destroyAllWindows()
 #
-opening, no = opening_adjust(segment)
+binary = rgb_to_binary_2(segment)
+opening, no = opening_adjust(np.uint8(binary*255))
