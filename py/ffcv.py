@@ -9,23 +9,23 @@ def normalize(x):
     y=(x-np.min(x))/(np.max(x)-np.min(x))*255
     return y
 
-def channelops(mat, n):
+def channelops(mat, n, sigC, sigD):
     
     mat=np.float32(mat)
-    mat = cv2.bilateralFilter(mat, n, 1, 1)
+    mat = cv2.bilateralFilter(mat, n, sigC, sigD)
     mu = cv2.blur(mat,(n,n))
     mdiff=mu-mat
     mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
     sd = np.float32(cv2.sqrt(mat2))
-    mat=normalize(mat)
-    mu=normalize(mu)
-    sd=normalize(sd)
+    matn=normalize(mat)
+    mun=normalize(mu)
+    sdn=normalize(sd)
     
-    mat=mat.reshape((np.size(mat)))
-    mu=mu.reshape((np.size(mu)))
-    sd=sd.reshape((np.size(sd)))
+    matr=mat.reshape((np.size(matn)))
+    mur=mu.reshape((np.size(mun)))
+    sdr=sd.reshape((np.size(sdn)))
 
-    features=np.transpose(np.array([mat, mu, sd]))
+    features=np.transpose(np.array([matr, mur, sdr]))
     return features
 
 def readsplit(imname):
@@ -37,8 +37,32 @@ def readsplit(imname):
     ndvi = (r-b)/(r+b)
     return h, s, v, img
     
-def canny_contours(c, n):
-    edges = cv2.Canny(c,25,50,n)
+def bilat_adjust(mat):
+
+    bilat = cv2.bilateralFilter(mat, 7, 7, 7)
+
+    cv2.namedWindow('bilat')
+    cv2.createTrackbar('n','bilat',0,21,nothing)
+    cv2.createTrackbar('sigC','bilat',0,1000,nothing)
+    cv2.createTrackbar('sigD','bilat',0,21,nothing)
+    while(1):
+        cv2.imshow('bilat',bilat)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+        n = cv2.getTrackbarPos('n','bilat')
+        sigC = cv2.getTrackbarPos('sigC','bilat')
+        sigD = cv2.getTrackbarPos('sigD','bilat')
+        bilat = cv2.bilateralFilter(mat, n, sigC, sigD)
+
+
+    cv2.destroyAllWindows()
+
+    return bilat, n, sigC, sigD
+    
+def canny_contours(mat, n):
+    edges = cv2.Canny(mat,25,50,n)
 
     cv2.namedWindow('edges')
     cv2.createTrackbar('MinVal','edges',0,255,nothing)
@@ -53,13 +77,13 @@ def canny_contours(c, n):
         minval = cv2.getTrackbarPos('MinVal','edges')
         maxval = cv2.getTrackbarPos('MaxVal','edges')
             
-        edges[:] = cv2.Canny(c,minval,maxval,n)
+        edges = cv2.Canny(mat,minval,maxval,n)
 
     cv2.destroyAllWindows()
 
     contours, hierarchy = cv2.findContours(edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
-    return contours
+    return contours, minval, maxval
 
 def labels_to_rgb(labels,rows,cols):
     
@@ -109,57 +133,53 @@ trainname = "../images/at0.jpg"
 testname = "../images/a0.jpg" 
 
 c1,c2,c3,img=readsplit(trainname)
-n=7
+bilat, n, sigC, sigD = bilat_adjust(c1)
+contours, minval, maxval = canny_contours(c1, n)
 
-train = channelops(c1, n)
-train = np.hstack((train,channelops(c3, n)))
+train = channelops(c1, n, sigC, sigD)
+train = np.hstack((train,channelops(c3, n, sigC, sigD)))
 
 segment = cv2.imread(labelsname)
 labels = rgb_to_labels_2(segment)
 
 c1,c2,c3,img=readsplit(testname)
-test = channelops(c1, n)
-test = np.hstack((test,channelops(c3, n)))
+
+test = channelops(c1, n, sigC, sigD)
+test = np.hstack((test,channelops(c3, n, sigC, sigD)))
 
 rows, cols = c1.shape
 cv2.namedWindow('image')
 cv2.imshow('image',img)
-cv2.waitKey(1)
-title0 = "segment "    
+cv2.waitKey(1)    
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
 
-        
+      
+knn = cv2.KNearest()
+em = cv2.EM(2,cv2.EM_COV_MAT_DIAGONAL)
+nb = cv2.NormalBayesClassifier()    
 svm_params = dict( kernel_type = cv2.SVM_RBF,
-                    svm_type = cv2.SVM_C_SVC,
-                    C=svcc,
-                    gamma=svcg)
+                    svm_type = cv2.SVM_C_SVC)
+nb.train(train,labels)
+knn.train(train,labels)
 
+varIdx=None
+samplesIdx=None
 svm = cv2.SVM()
-svm.train_auto(train,labels,varIdx=[], samplesIdx=[])#, params=svm_params)
+svm.train_auto(train,labels,varIdx,samplesIdx, params=svm_params)
 svm.save('svm_data.dat')
-
 
 result = svm.predict_all(test)
 segment=labels_to_rgb_2(result,rows,cols)
 cv2.namedWindow("segment svm")
 cv2.imshow("segment svm",segment)
 cv2.waitKey(1)
-            
 
-      
-knn = cv2.KNearest()
-em = cv2.EM(2,cv2.EM_COV_MAT_DIAGONAL)
-nb = cv2.NormalBayesClassifier()
-
-nb.train(train,labels)
-knn.train(train,labels)
-
-for knnk in [5, 10, 15, 20, 25]:
-    ret, result,neighbours,dist = knn.find_nearest(test,k=knnk)
-    segment=labels_to_rgb_2(result,rows,cols)
-    cv2.namedWindow(title0 + "%u" % knnk)
-    cv2.imshow(title0 + "%u" % knnk,segment)
-    cv2.waitKey(1)
+knnk = 25
+ret, result,neighbours,dist = knn.find_nearest(test,k=knnk)
+segment=labels_to_rgb_2(result,rows,cols)
+cv2.namedWindow("segment knn")
+cv2.imshow("segment knn",segment)
+cv2.waitKey(1)
 
 ret, result=nb.predict(test)
 segment=labels_to_rgb_2(result,rows,cols)
