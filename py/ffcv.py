@@ -31,9 +31,10 @@ def ndvi_calc(imname):
         
     img = cv2.imread(imname)
     b,g,r = cv2.split(img)
-    uno = np.ones(shape(r))
-    nmax = np.maximum(-1*uno,(r-b)/(r+b+.000001))
-    ndvi = np.mininum(nmax,uno)
+    s=np.shape(r)
+    uno = np.ones(s)
+    nmax = np.maximum(-1*uno,(r-b)/(r+b))
+    ndvi = np.minimum(nmax,uno)
 
     return ndvi, img
 
