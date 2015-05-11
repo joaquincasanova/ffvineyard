@@ -2,7 +2,7 @@ EXEC = ffcv
 SRC = ffcv.cpp
 INC_DIR = /usr/include/ 
 LIB_DIR = /usr/lib/
-LDLIBS = -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml #-lbcm2835
+LDLIBS = -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml
 CC = g++
 CFLAGS = -Wall
 LFLAGS = -L$(LIB_DIR) $(LDLIBS)
@@ -18,4 +18,4 @@ $(OBJS) : $(SRC)
 	$(CC) $(CFLAGS) $(IFLAGS) -c $(SRC)
 
 clean:
-	rm $(EXEC) $(OBJS) *~
+	rm $(OBJS) *~
