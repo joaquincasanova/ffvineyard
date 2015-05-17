@@ -51,10 +51,13 @@ public:
     };
   }
 
-  double Lsky(double emiss_atm, double Ta){return;}
-  double ra(double d, double z0){return 4.72*(log((z-d)/z0)/vonk)^2/(1+0.54*uz)};
-  double Tdry(void){return Ta+ra(double uz, double z)*Rn/(rhoa*cp);}
-  double Twet(double rc){return ;}
+  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4);}
+  double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn/(rhoa*cp);}
+  double Twet(double rc, double d, double z0){
+    double tmp1 = rc*ra(d,z0)*gamma()*Rn/(rhoa*cp*(gamma()*rc()+delta()*ra(d,z0)));
+    double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma()*rc+delta()*ra(d,z0));
+    return Ta + tmp1 - tmp2;
+  }
 
 private:
   double u2(void){return uz*4.87/log(67.8*z-5.42);} //m/s, m
@@ -114,6 +117,8 @@ private:
   double Rns(void){return Rso()*(1.0-alb);}
   double Rnl(void){return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd();}
   double Rng(void){return 0.408*Rn();}
+  double eps_atm(void){return 0.70+5.95e-4*e_a()*exp(1500/(Ta+Tk));}
+  double ra(double d, double z0){return 4.72*(log((z-d)/z0)/vonk)^2/(1+0.54*uz)};
 };
 
 Hourly::Hourly(void){
@@ -190,6 +195,8 @@ Daily::~Daily(void){
 
 class Canopy{
 public:
+  Canopy(double,double,double,double);
+  ~Canopy(void);
   double row;
   double wc;
   double fc;
@@ -197,7 +204,7 @@ public:
   double ke=0.7;
   double klw=0.95;
   double hc;
-  double omega0(void){(return1-porosity)*log(1-ff)/log(porosity)/ff;}//Fuentes 2008
+  double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
   double fdhc(void){return ff};
@@ -207,13 +214,33 @@ public:
   double h(void){return 0.63*hc;}
   double rc(void){return 120.0;}//s/m Texeira 2007
   double thetalw(void){return exp(-klw*row/wc*LAI());}
-  double Tcan(double Tirt, double Ts){return;}
+  double Tcan(double Tirt, double Ts, double Lsky){
+    double eps_c = 0.98;
+    double eps_s = 0.98;
+    double A = thetalw()*fdhc()+1-fdhc();
+    double B = (1-eps_s)*A+(1-eps_c)*fdhc();
+    double Ls = boltz*eps_s*pow(Tirt+Tk,4);
+    double tmp = PI*boltz*pow(Tirt+Tk,4)-Ls*A-Lsky*B;
+    return pow(tmp/eps_c/fdhc(),0.25);
+  }
 };
+
+Canopy::Canopy(double row1, double  wc1, double fc1, double ff1,double hc1){
+  row=row1;
+  wc=wc1;
+  fc=fc1;
+  ff=ff1;
+  hc=hc1;
+}
+
+Canopy::~Canopy(void){
+}
   
 
 int main(void){
 
   Daily Day;
+  Hourly Hour;
 
   cout << "D ";
   cin >> Day.D;
@@ -246,6 +273,8 @@ int main(void){
   cout << Day.Rn() << std::endl;
   cout << "ET " << std::endl; 
   cout << Day.ET() << std::endl;
+
+  Canopy Can(row, wc, fc, ff, hc);
 
   return 0;
 }
