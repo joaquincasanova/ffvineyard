@@ -8,18 +8,18 @@
 #include <string.h>
 #include <math.h>
 
-#define PI 3.1459265
-#define boltz 5.670373e−8// W K-4 m-2
-#define boltzd 4.903e-9// MJ K-4 m-2 day-1
-#define boltzh 2.042e-10// MJ K-4 m-2 h-1
-#define vonk 0.4
-#define Tk 273.16
-#define psych 0.000665
-#define cp 1005 //J/kg/K
-#define rhoa 1.205 //kg/m3
- 
 using namespace std;
 
+double PI = 3.1459265;
+double boltz = 0.00000005670373;// W K-4 m-2
+double boltzd = 0.000000004903;// MJ K-4 m-2 day-1
+double boltzh = 0.0000000002042;// MJ K-4 m-2 h-1
+double vonk = 0.4;
+double Tk = 273.16;
+double psych = 0.000665;
+double cp = 1005; //J/kg/K
+double rhoa = 1.205; //kg/m3
+ 
 //asce etsz
 
 class Hourly{
@@ -61,12 +61,12 @@ public:
 
 private:
   double u2(void){return uz*4.87/log(67.8*z-5.42);} //m/s, m
-  double delta(void){return 4098*(0.6108*exp(17.27*Tmean()/(Tmean()+237.7)))/pow(Tmean()+273.3,2);} //kpa/C
+  double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.32);} //kpa/C
   double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
   double gamma(void){return psych*P();}
   double DT(void){return delta()/(delta()+gamma()*(1+0.34*u2()));}
   double PT(void){return gamma()/(delta()+gamma()*(1+0.34*u2()));}
-  double TT(void){return (900/(a+273))*u2();}
+  double TT(void){return (900/(Ta+273))*u2();}
   double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
   double e_s(void){return (e_T(Ta));}
   double e_a(void){return (e_T(Ta)*RH/100)/2;}
@@ -76,16 +76,16 @@ private:
   double Rng(void){return 0.408*Rn;}
   int J(void){return D-32+(int)(275*M/9)+2*(int)(3/(M+1))+(int)(M/100-(Y%4)/4+0.975);}
   double Sc(void){
-    b=2*PI*(J()-81)/364;
+    double b=2*PI*(J()-81)/364;
     return 0.1645*sin(2*b)-0.1255*cos(b)-0.025*sin(b);
   }//hour
   double dr(void){return 1+0.033*cos(2*PI/365*J());}
   double dec(void){return 0.409*sin(2*PI/365*J()-1.39);}
   double phi(void){return PI/180*lat;}
-  double omega(void){return PI/12*(H+0.06667*(lonz-lonm)+Sc)-12;}
+  double omega(void){return PI/12*(H+0.06667*(lonz-lonm)+Sc())-12;}
   double omega_s(void){return acos(-tan(phi())*tan(dec()));}
   double omega_1(void){
-    tmp=omega()-PI*H/24; 
+    double tmp=omega()-PI*H/24; 
     if(tmp<-omega_s()){
       tmp=-omega_s();
     }
@@ -95,7 +95,7 @@ private:
     return tmp;
   }
   double omega_2(void){
-    tmp=omega()+PI*H/24
+    double tmp=omega()+PI*H/24;
     if(tmp<-omega_s()){
       tmp=-omega_s();
     }
@@ -105,7 +105,7 @@ private:
     return tmp;
   }
   double beta(void){
-    return ;
+    return asin(sin(phi())*sin(dec())+cos(phi())*cos(dec())*cos(omega()));
   }
   double Rs(void){
     return 12/PI*0.0820*dr()*((omega_2()-min(omega_1(),omega_2()))*sin(phi())*sin(dec())+(sin(omega_2()-min(omega_1(),omega_2())))*cos(phi())*cos(dec()));
@@ -113,12 +113,24 @@ private:
   double fcd(void){
     return (1.35*Rs()/Rso()-0.35);
   }
+  double fcd_beta_lt_03(void){
+    int H0 = H;
+    H=1;
+    while(beta()<0.3){H++;}
+    H = H0;
+    return (1.35*Rs()/Rso()-0.35);
+  }
   double Rso(void){return (0.75+(2e-5)*ZZ)*Rs();}
   double Rns(void){return Rso()*(1.0-alb);}
-  double Rnl(void){return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd();}
-  double Rng(void){return 0.408*Rn();}
+  double Rnl(void){
+    if (beta()>=0.3){
+      return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd();
+    }else{
+      return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd_beta_lt_03();
+    }
+  }
   double eps_atm(void){return 0.70+5.95e-4*e_a()*exp(1500/(Ta+Tk));}
-  double ra(double d, double z0){return 4.72*(log((z-d)/z0)/vonk)^2/(1+0.54*uz)};
+  double ra(double d, double z0){return 4.72*(log((z-d)/z0)/vonk)^2/(1+0.54*uz)}
 };
 
 Hourly::Hourly(void){
@@ -184,7 +196,6 @@ private:
   double Rns(void){return Rso()*(1.0-alb);}
   double Rnl(void){return boltzd*(pow(Tmin+Tk,4)+pow(Tmax+Tk,4))/2*(0.34-0.14*sqrt(e_a()))*fcd();}
   double Rng(void){return 0.408*Rn();}
-
 };
 
 Daily::Daily(void){
@@ -195,7 +206,7 @@ Daily::~Daily(void){
 
 class Canopy{
 public:
-  Canopy(double,double,double,double);
+  Canopy(double,double,double,double,double);
   ~Canopy(void);
   double row;
   double wc;
@@ -207,11 +218,11 @@ public:
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
-  double fdhc(void){return ff};
+  double fdhc(void){return ff;}
   double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double z0(void){return 0.13*hc;}
-  double h(void){return 0.63*hc;}
+  double d(void){return 0.63*hc;}
   double rc(void){return 120.0;}//s/m Texeira 2007
   double thetalw(void){return exp(-klw*row/wc*LAI());}
   double Tcan(double Tirt, double Ts, double Lsky){
@@ -225,7 +236,7 @@ public:
   }
 };
 
-Canopy::Canopy(double row1, double  wc1, double fc1, double ff1,double hc1){
+Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
   row=row1;
   wc=wc1;
   fc=fc1;
@@ -241,6 +252,14 @@ int main(void){
 
   Daily Day;
   Hourly Hour;
+
+  double row;
+  double wc;
+  double fc;
+  double ff;
+  double hc;
+  double Ts;
+  double Tirt;
 
   cout << "D ";
   cin >> Day.D;
@@ -274,7 +293,57 @@ int main(void){
   cout << "ET " << std::endl; 
   cout << Day.ET() << std::endl;
 
+  Hour.D = Day.D;
+  Hour.M = Day.M;
+  Hour.Y = Day.Y;
+  cout << "H ";
+  cin >> Hour.H;
+  cout << "T";
+  cin >> Hour.Ta;//C
+  cout << "RH ";
+  cin >> Hour.RH;
+  cout << "uz ";
+  cin >> Hour.uz;//m/s
+  Hour.z = Day.z;
+  Hour.ZZ = Day.ZZ;//m
+  Hour.lat = Day.lat;//deg//m
+  Hour.alb = Day.alb;
+  cout << "lonm";
+  cin >> Hour.lonm;//deg
+  cout << "lonz";
+  cin >> Hour.lonz;//deg
+  cout << "Rnin ";
+  cin >> Hour.Rnin;//
+  cout << Hour.Rn() << std::endl;
+  cout << "ET " << std::endl; 
+  cout << Hour.ET() << std::endl;
+  
+  cout << "row";
+  cin >> row;
+  cout << "wc";
+  cin >> wc;
+  cout << "fc";
+  cin >> fc;
+  cout << "ff";
+  cin >> ff;
+  cout << "hc";
+  cin >> hc;
+  cout << "Ts";
+  cin >> Ts;
+  cout << "Tirt";
+  cin >> Tirt;
+
   Canopy Can(row, wc, fc, ff, hc);
+  cout << "LAI " << std::endl; 
+  cout << Can.LAI() << std::endl;
+  cout << "Tdry " << std::endl; 
+  cout << Hour.Tdry(Can.d(),Can.z0()) << std::endl;
+  cout << "Twet " << std::endl; 
+  cout << Hour.Twet(Can.rc(), Can.d(), Can.z0()) << std::endl;
+  cout << "Tcan " << std::endl; 
+  cout << Can.Tcan(Tirt, Ts, Hour.Lsky()) << std::endl;
+  cout << "CWSI " << std::endl;
+  cout << Can.CWSI(Can.Tcan(Tirt, Ts, Hour.Lsky()), Hour.Tdry(Can.d(),Can.z0()), Hour.Twet(Can.rc(), Can.d(), Can.z0())) << std::endl;
 
   return 0;
 }
