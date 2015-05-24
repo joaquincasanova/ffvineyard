@@ -52,16 +52,16 @@ public:
   }
 
   double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4);}
-  double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn/(rhoa*cp);}
+  double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn()/(rhoa*cp);}
   double Twet(double rc, double d, double z0){
-    double tmp1 = rc*ra(d,z0)*gamma()*Rn/(rhoa*cp*(gamma()*rc()+delta()*ra(d,z0)));
+    double tmp1 = rc*ra(d,z0)*gamma()*Rn()/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
     double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma()*rc+delta()*ra(d,z0));
     return Ta + tmp1 - tmp2;
   }
 
 private:
   double u2(void){return uz*4.87/log(67.8*z-5.42);} //m/s, m
-  double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.32);} //kpa/C
+  double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
   double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
   double gamma(void){return psych*P();}
   double DT(void){return delta()/(delta()+gamma()*(1+0.34*u2()));}
@@ -73,7 +73,6 @@ private:
   double ET_rad(void){return DT()*Rng();}
   double ET_wind(void){return PT()*TT()*(e_s()-e_a());}
   double ET_o(void){return ET_wind()+ET_rad();}
-  double Rng(void){return 0.408*Rn;}
   int J(void){return D-32+(int)(275*M/9)+2*(int)(3/(M+1))+(int)(M/100-(Y%4)/4+0.975);}
   double Sc(void){
     double b=2*PI*(J()-81)/364;
@@ -130,7 +129,9 @@ private:
     }
   }
   double eps_atm(void){return 0.70+5.95e-4*e_a()*exp(1500/(Ta+Tk));}
-  double ra(double d, double z0){return 4.72*(log((z-d)/z0)/vonk)^2/(1+0.54*uz)}
+  double ra(double d, double z0){return 4.72*pow((log((z-d)/z0)/vonk),2)/(1+0.54*uz);}
+  double Rng(void){return 0.408*Rn();}
+
 };
 
 Hourly::Hourly(void){
@@ -212,8 +213,8 @@ public:
   double wc;
   double fc;
   double ff;
-  double ke=0.7;
-  double klw=0.95;
+  double ke;
+  double klw;
   double hc;
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
@@ -242,6 +243,8 @@ Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
   fc=fc1;
   ff=ff1;
   hc=hc1;
+  ke=0.7;
+  klw=0.95;
 }
 
 Canopy::~Canopy(void){
