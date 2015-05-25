@@ -31,7 +31,7 @@ public:
   int Y;
   int H;
   double lat;//deg
-  double lonm;//deg
+  double lonm;//deg-longitude of measurement site
   double lonz;//deg
   double alb;
   double Ta;//C
@@ -40,14 +40,15 @@ public:
   double z;//m
   double ZZ;//m
   double Kc;
-  double Rnin;//MJ/m2/h
+  double RnsIn;//MJ/m2/h
   double ET(void){return Kc*ET_o();}//mm
 
   double Rn(void){
-    if(Rnin<0){
+    cout << Rns() << " " << Rnl() << std::endl;
+    if(Rnsin<0){
       return Rns()-Rnl();
       }else{
-      return Rnin;
+      return RnsIn-Rnl();
     };
   }
 
@@ -119,7 +120,8 @@ private:
     H = H0;
     return (1.35*Rs()/Rso()-0.35);
   }
-  double Rso(void){return (0.75+(2e-5)*ZZ)*Rs();}
+  double Rso(void){
+    return (0.75+(2e-5)*ZZ)*Rs();}
   double Rns(void){return Rso()*(1.0-alb);}
   double Rnl(void){
     if (beta()>=0.3){
@@ -128,7 +130,7 @@ private:
       return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd_beta_lt_03();
     }
   }
-  double eps_atm(void){return 0.70+5.95e-4*e_a()*exp(1500/(Ta+Tk));}
+  double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
   double ra(double d, double z0){return 4.72*pow((log((z-d)/z0)/vonk),2)/(1+0.54*uz);}
   double Rng(void){return 0.408*Rn();}
 
@@ -138,71 +140,6 @@ Hourly::Hourly(void){
 }
 
 Hourly::~Hourly(void){
-}
-
-class Daily{
-public:
-  Daily(void);
-  ~Daily(void);
-
-  int D;
-  int M;
-  int Y;
-  double Tmax;//C
-  double Tmin;//C
-  double RHmax;//%
-  double RHmin;//%
-  double uz;//m/s
-  double z;//m
-  double ZZ;//m
-  double lat;//deg
-  double alb;
-  double Kc;
-  double Rnin;//MJ/m2/day
-
-  double Rn(void){
-    if(Rnin<0){
-      return Rns()-Rnl();
-      }else{
-      return Rnin;
-    };
-  }
-
-  double ET(void){return Kc*ET_o();}//mm
-
-private:
-  double Tmean(void){return (Tmin+Tmax)/2;} //degree C
-  double u2(void){return uz*4.87/log(67.8*z-5.42);} //m/s, m
-  double delta(void){return 4098*(0.6108*exp(17.27*Tmean()/(Tmean()+237.7)))/pow(Tmean()+273.3,2);} //kpa/C
-  double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
-  double gamma(void){return psych*P();}
-  double DT(void){return delta()/(delta()+gamma()*(1+0.34*u2()));}
-  double PT(void){return gamma()/(delta()+gamma()*(1+0.34*u2()));}
-  double TT(void){return (900/(Tmean()+273))*u2();}
-  double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
-  double e_s(void){return (e_T(Tmin)+e_T(Tmax))/2;}
-  double e_a(void){return (e_T(Tmin)*RHmax/100+e_T(Tmax)*RHmin/100)/2;}
-  double ET_rad(void){return DT()*Rng();}
-  double ET_wind(void){return PT()*TT()*(e_s()-e_a());}
-  double ET_o(void){return ET_wind()+ET_rad();}
-
-  int J(void){return D-32+(int)(275*M/9)+2*(int)(3/(M+1))+(int)(M/100-(Y%4)/4+0.975);}
-  double dr(void){return 1+0.033*cos(2*PI/365*J());}
-  double dec(void){return 0.409*sin(2*PI/365*J()-1.39);}
-  double phi(void){return PI/180*lat;}
-  double omega_s(void){return acos(-tan(phi())*tan(dec()));}
-  double fcd(void){return (1.35*Rs()/Rso()-0.35);}
-  double Rs(void){return 24*60/PI*0.0820*dr()*(omega_s()*sin(phi())*sin(dec())+sin(omega_s())*cos(phi())*cos(dec()));}
-  double Rso(void){return (0.75+(2e-5)*ZZ)*Rs();}
-  double Rns(void){return Rso()*(1.0-alb);}
-  double Rnl(void){return boltzd*(pow(Tmin+Tk,4)+pow(Tmax+Tk,4))/2*(0.34-0.14*sqrt(e_a()))*fcd();}
-  double Rng(void){return 0.408*Rn();}
-};
-
-Daily::Daily(void){
-}
-
-Daily::~Daily(void){
 }
 
 class Canopy{
@@ -253,7 +190,6 @@ Canopy::~Canopy(void){
 
 int main(void){
 
-  Daily Day;
   Hourly Hour;
 
   double row;
@@ -263,88 +199,50 @@ int main(void){
   double hc;
   double Ts;
   double Tirt;
+   
+  ifstream ifile;
+  ofstream ofile;
 
-  cout << "D ";
-  cin >> Day.D;
-  cout << "M ";
-  cin >> Day.M;
-  cout << "Y ";
-  cin >> Day.Y;
-  cout << "Tmax ";
-  cin >> Day.Tmax;//C
-  cout << "Tmin ";
-  cin >> Day.Tmin;//C
-  cout << "RHmax ";
-  cin >> Day.RHmax;//%
-  cout << "RHmin ";
-  cin >> Day.RHmin;//%
-  cout << "uz ";
-  cin >> Day.uz;//m/s
-  cout << "z ";
-  cin >> Day.z;//m
-  cout << "ZZ ";
-  cin >> Day.ZZ;//m
-  cout << "lat ";
-  cin >> Day.lat;//deg
-  cout << "alb ";
-  cin >> Day.alb;
-  cout << "Kc ";
-  cin >> Day.Kc;
-  cout << "Rnin ";
-  cin >> Day.Rnin;//
-  cout << Day.Rn() << std::endl;
-  cout << "ET " << std::endl; 
-  cout << Day.ET() << std::endl;
-
-  Hour.D = Day.D;
-  Hour.M = Day.M;
-  Hour.Y = Day.Y;
-  cout << "H ";
-  cin >> Hour.H;
-  cout << "T";
-  cin >> Hour.Ta;//C
-  cout << "RH ";
-  cin >> Hour.RH;
-  cout << "uz ";
-  cin >> Hour.uz;//m/s
-  Hour.z = Day.z;
-  Hour.ZZ = Day.ZZ;//m
-  Hour.lat = Day.lat;//deg//m
-  Hour.alb = Day.alb;
-  cout << "lonm";
-  cin >> Hour.lonm;//deg
-  cout << "lonz";
-  cin >> Hour.lonz;//deg
-  cout << "Rnin ";
-  cin >> Hour.Rnin;//
-  cout << Hour.Rn() << std::endl;
-  cout << "ET " << std::endl; 
-  cout << Hour.ET() << std::endl;
-  
-  cout << "row";
+  cout << "row ";
   cin >> row;
-  cout << "wc";
+  cout << "wc ";
   cin >> wc;
-  cout << "fc";
+  cout << "fc ";
   cin >> fc;
-  cout << "ff";
+  cout << "ff ";
   cin >> ff;
-  cout << "hc";
+  cout << "hc ";
   cin >> hc;
-  cout << "Ts";
+  cout << "Ts ";
   cin >> Ts;
-  cout << "Tirt";
+  cout << "Tirt ";
   cin >> Tirt;
+  cout << "z ";
+  cin >> Hour.z;//m
+  cout << "ZZ ";
+  cin >> Hour.ZZ;//m
+  cout << "alb ";
+  cin >> Hour.alb;
+  cout << "lat ";
+  cin >> Hour.lat;//deg-latitude
+  cout << "lonm ";
+  cin >> Hour.lonm;
+  cout << "lonz ";
+  cin >> Hour.lonz;//deg-longitude of center of time zone
 
   Canopy Can(row, wc, fc, ff, hc);
-  cout << "LAI " << std::endl; 
-  cout << Can.LAI() << std::endl;
-  cout << "Tdry " << std::endl; 
-  cout << Hour.Tdry(Can.d(),Can.z0()) << std::endl;
+  Hour.Kc = Can.Kc();
+
+  ifile.open("../072014Bushland.csv",ios_base::in); 
+  ofile.open("../data/test.csv",ios_base::out|ios_base::app);
+  ofile << "Time Rn ET Kc LAI Lsky Twey Tdry Tcan CWSI" << std::endl; 
+  outfile << Hour.Rn() <<  Hour.ET() << Can.LAI() << Hour.Tdry(Can.d(),Can.z0()) << std::endl;
   cout << "Twet " << std::endl; 
   cout << Hour.Twet(Can.rc(), Can.d(), Can.z0()) << std::endl;
   cout << "Tcan " << std::endl; 
   cout << Can.Tcan(Tirt, Ts, Hour.Lsky()) << std::endl;
+  cout << "Lsky " << std::endl; 
+  cout << Hour.Lsky() << std::endl;
   cout << "CWSI " << std::endl;
   cout << Can.CWSI(Can.Tcan(Tirt, Ts, Hour.Lsky()), Hour.Tdry(Can.d(),Can.z0()), Hour.Twet(Can.rc(), Can.d(), Can.z0())) << std::endl;
 
