@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <fstream>
 #include <string.h>
 #include <math.h>
 
@@ -44,8 +45,7 @@ public:
   double ET(void){return Kc*ET_o();}//mm
 
   double Rn(void){
-    cout << Rns() << " " << Rnl() << std::endl;
-    if(Rnsin<0){
+    if(RnsIn<0){
       return Rns()-Rnl();
       }else{
       return RnsIn-Rnl();
@@ -60,8 +60,8 @@ public:
     return Ta + tmp1 - tmp2;
   }
 
-private:
-  double u2(void){return uz*4.87/log(67.8*z-5.42);} //m/s, m
+  //private:
+  double u2(void){if(z==2){return uz;}else{return uz*4.87/log(67.8*z-5.42);}} //m/s, m
   double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
   double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
   double gamma(void){return psych*P();}
@@ -82,7 +82,7 @@ private:
   double dr(void){return 1+0.033*cos(2*PI/365*J());}
   double dec(void){return 0.409*sin(2*PI/365*J()-1.39);}
   double phi(void){return PI/180*lat;}
-  double omega(void){return PI/12*(H+0.06667*(lonz-lonm)+Sc())-12;}
+  double omega(void){return PI/12*(H+0.06667*(lonz-lonm)+Sc()-12);}
   double omega_s(void){return acos(-tan(phi())*tan(dec()));}
   double omega_1(void){
     double tmp=omega()-PI*H/24; 
@@ -108,7 +108,9 @@ private:
     return asin(sin(phi())*sin(dec())+cos(phi())*cos(dec())*cos(omega()));
   }
   double Rs(void){
-    return 12/PI*0.0820*dr()*((omega_2()-min(omega_1(),omega_2()))*sin(phi())*sin(dec())+(sin(omega_2()-min(omega_1(),omega_2())))*cos(phi())*cos(dec()));
+    double tmp1 = (omega_2()-min(omega_1(),omega_2()))*sin(phi())*sin(dec());
+    double tmp2 = (sin(omega_2()-min(omega_1(),omega_2())))*cos(phi())*cos(dec());
+    return 12/PI*0.0820*dr()*(tmp1+tmp2);
   }
   double fcd(void){
     return (1.35*Rs()/Rso()-0.35);
@@ -117,8 +119,9 @@ private:
     int H0 = H;
     H=1;
     while(beta()<0.3){H++;}
+    double tmp = (1.35*Rs()/Rso()-0.35);
     H = H0;
-    return (1.35*Rs()/Rso()-0.35);
+    return tmp;
   }
   double Rso(void){
     return (0.75+(2e-5)*ZZ)*Rs();}
@@ -158,6 +161,7 @@ public:
   double porosity(void){return ff/fc;}
   double fdhc(void){return ff;}
   double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
+  double alb(void){return 0.05;}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double z0(void){return 0.13*hc;}
   double d(void){return 0.63*hc;}
@@ -167,8 +171,9 @@ public:
     double eps_c = 0.98;
     double eps_s = 0.98;
     double A = thetalw()*fdhc()+1-fdhc();
-    double B = (1-eps_s)*A+(1-eps_c)*fdhc();
-    double Ls = boltz*eps_s*pow(Tirt+Tk,4);
+    double B = (1.0-eps_s)*A+(1.0-eps_c)*fdhc();
+    double Ls = boltz*eps_s*pow(Ts+Tk,4);
+    cout << Ls << std::endl;
     double tmp = PI*boltz*pow(Tirt+Tk,4)-Ls*A-Lsky*B;
     return pow(tmp/eps_c/fdhc(),0.25);
   }
@@ -203,48 +208,39 @@ int main(void){
   ifstream ifile;
   ofstream ofile;
 
-  cout << "row ";
-  cin >> row;
-  cout << "wc ";
-  cin >> wc;
-  cout << "fc ";
-  cin >> fc;
-  cout << "ff ";
-  cin >> ff;
-  cout << "hc ";
-  cin >> hc;
-  cout << "Ts ";
-  cin >> Ts;
-  cout << "Tirt ";
-  cin >> Tirt;
-  cout << "z ";
-  cin >> Hour.z;//m
-  cout << "ZZ ";
-  cin >> Hour.ZZ;//m
-  cout << "alb ";
-  cin >> Hour.alb;
-  cout << "lat ";
-  cin >> Hour.lat;//deg-latitude
-  cout << "lonm ";
-  cin >> Hour.lonm;
-  cout << "lonz ";
-  cin >> Hour.lonz;//deg-longitude of center of time zone
+  
+  row=3.5;
+  wc=1;
+  fc=.4;
+  ff=.3;
+  hc=1.5;
+  Hour.z=2;//m
+  Hour.ZZ=1066;
+  Hour.lat = 35.15;//deg-latitude
+  Hour.lonm = -102.13;
+  Hour.lonz = -90;//deg-longitude of center of time zone
 
   Canopy Can(row, wc, fc, ff, hc);
-  Hour.Kc = Can.Kc();
+  Hour.Kc  = Can.Kc();
+  Hour.alb = Can.alb();
 
-  ifile.open("../072014Bushland.csv",ios_base::in); 
-  ofile.open("../data/test.csv",ios_base::out|ios_base::app);
-  ofile << "Time Rn ET Kc LAI Lsky Twey Tdry Tcan CWSI" << std::endl; 
-  outfile << Hour.Rn() <<  Hour.ET() << Can.LAI() << Hour.Tdry(Can.d(),Can.z0()) << std::endl;
-  cout << "Twet " << std::endl; 
-  cout << Hour.Twet(Can.rc(), Can.d(), Can.z0()) << std::endl;
-  cout << "Tcan " << std::endl; 
-  cout << Can.Tcan(Tirt, Ts, Hour.Lsky()) << std::endl;
-  cout << "Lsky " << std::endl; 
-  cout << Hour.Lsky() << std::endl;
-  cout << "CWSI " << std::endl;
-  cout << Can.CWSI(Can.Tcan(Tirt, Ts, Hour.Lsky()), Hour.Tdry(Can.d(),Can.z0()), Hour.Twet(Can.rc(), Can.d(), Can.z0())) << std::endl;
-
+  ifile.open("../data/072014Bushland.csv",ios_base::in); 
+  ofile.open("../data/test.csv",ios_base::out);
+  ofile << "Date/Time Rn ET Kc LAI Lsky Twey Tdry Tcan CWSI" << std::endl; 
+  string line;
+  int dum;
+  getline(ifile, line);//header
+  while (getline(ifile, line)){
+    sscanf(line.c_str(),"%d/%d/%d %d:%d:%d,%lf,%lf,%lf,%lf",&Hour.M,&Hour.D,&Hour.Y,&Hour.H,&dum,&dum,&Hour.RnsIn,&Hour.uz,&Hour.Ta,&Hour.RH);  
+    Ts=Hour.Ta+2;
+    Tirt=Hour.Ta;
+    ofile << Hour.M << '/'<< Hour.D << '/' << Hour.Y << ' ' << Hour.H << ','<< Hour.Rn();
+    ofile << ','<<  Hour.ET() << ','<< Can.LAI() << ','<< Hour.Tdry(Can.d(),Can.z0());
+    ofile << ','<< Hour.Twet(Can.rc(), Can.d(), Can.z0()) << ','<< Can.Tcan(Tirt, Ts, Hour.Lsky()) << ','<<  Hour.Lsky();
+    ofile << ','<< Can.CWSI(Can.Tcan(Tirt, Ts, Hour.Lsky()), Hour.Tdry(Can.d(),Can.z0()), Hour.Twet(Can.rc(), Can.d(), Can.z0()));
+    ofile << ','<< Hour.eps_atm() << ','<< Can.thetalw() << std::endl;
+  }
+  ofile.close();
+  ifile.close();
   return 0;
 }
