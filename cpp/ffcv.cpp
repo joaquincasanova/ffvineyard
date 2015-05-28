@@ -41,18 +41,10 @@ public:
   double z;//m
   double ZZ;//m
   double Kc;
-  double RnsIn;//MJ/m2/h
+  double RsIn;//MJ/m2/h
   double ET(void){return Kc*ET_o();}//mm
-
-  double Rn(void){
-    if(RnsIn<0){
-      return Rns()-Rnl();
-      }else{
-      return RnsIn-Rnl();
-    };
-  }
-
-  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4);}
+  double Rn(void){return Rns()-Rnl();}//MJ/m2/h
+  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4.0);}
   double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn()/(rhoa*cp);}
   double Twet(double rc, double d, double z0){
     double tmp1 = rc*ra(d,z0)*gamma()*Rn()/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
@@ -125,7 +117,10 @@ public:
   }
   double Rso(void){
     return (0.75+(2e-5)*ZZ)*Rs();}
-  double Rns(void){return Rso()*(1.0-alb);}
+  double Rns(void){
+    if(RsIn<0){return Rso()*(1.0-alb);}
+    else{return RsIn;}
+  }
   double Rnl(void){
     if (beta()>=0.3){
       return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd();
@@ -149,19 +144,19 @@ class Canopy{
 public:
   Canopy(double,double,double,double,double);
   ~Canopy(void);
-  double row;
-  double wc;
-  double fc;
-  double ff;
-  double ke;
-  double klw;
-  double hc;
+  double row;//row width m
+  double wc;//foliage width ,
+  double fc;//crown fraction
+  double ff;//total fraction
+  double ke;//extinction
+  double klw;//longwave extinction
+  double hc;//foliage height m
+  double alb(void){return 0.2;}//albedo from 
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
   double fdhc(void){return ff;}
   double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
-  double alb(void){return 0.05;}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double z0(void){return 0.13*hc;}
   double d(void){return 0.63*hc;}
@@ -170,12 +165,13 @@ public:
   double Tcan(double Tirt, double Ts, double Lsky){
     double eps_c = 0.98;
     double eps_s = 0.98;
-    double A = thetalw()*fdhc()+1-fdhc();
-    double B = (1.0-eps_s)*A+(1.0-eps_c)*fdhc();
-    double Ls = boltz*eps_s*pow(Ts+Tk,4);
-    cout << Ls << std::endl;
-    double tmp = PI*boltz*pow(Tirt+Tk,4)-Ls*A-Lsky*B;
-    return pow(tmp/eps_c/fdhc(),0.25);
+    double eps_i = 0.95;
+    double A = 1-fdhc();
+    double B = 0;//(1.0-eps_s)*(1.0-fdhc()+fdhc()*(thetalw()))+(1.0-eps_c)*fdhc();
+    double Ls = eps_s*boltz*pow(Ts+Tk,4.0);
+    double Lirt = eps_i*boltz*pow(Tirt+Tk,4.0);
+    double tmp=(Lirt-Lsky*B-Ls*A)/eps_c/fdhc()/boltz;
+    return pow(tmp,0.25)-Tk;
   }
 };
 
@@ -211,8 +207,8 @@ int main(void){
   
   row=3.5;
   wc=1;
-  fc=.4;
-  ff=.3;
+  fc=.5;
+  ff=.2;
   hc=1.5;
   Hour.z=2;//m
   Hour.ZZ=1066;
@@ -231,14 +227,14 @@ int main(void){
   int dum;
   getline(ifile, line);//header
   while (getline(ifile, line)){
-    sscanf(line.c_str(),"%d/%d/%d %d:%d:%d,%lf,%lf,%lf,%lf",&Hour.M,&Hour.D,&Hour.Y,&Hour.H,&dum,&dum,&Hour.RnsIn,&Hour.uz,&Hour.Ta,&Hour.RH);  
-    Ts=Hour.Ta+2;
+    sscanf(line.c_str(),"%d/%d/%d %d:%d:%d,%lf,%lf,%lf,%lf",&Hour.M,&Hour.D,&Hour.Y,&Hour.H,&dum,&dum,&Hour.RsIn,&Hour.uz,&Hour.Ta,&Hour.RH);  
+    Ts=Hour.Ta;
     Tirt=Hour.Ta;
     ofile << Hour.M << '/'<< Hour.D << '/' << Hour.Y << ' ' << Hour.H << ','<< Hour.Rn();
-    ofile << ','<<  Hour.ET() << ','<< Can.LAI() << ','<< Hour.Tdry(Can.d(),Can.z0());
+    ofile << ','<<  Hour.ET() << ','<< Can.LAI() << ',' << Hour.Ta<< ','<< Hour.Tdry(Can.d(),Can.z0());
     ofile << ','<< Hour.Twet(Can.rc(), Can.d(), Can.z0()) << ','<< Can.Tcan(Tirt, Ts, Hour.Lsky()) << ','<<  Hour.Lsky();
     ofile << ','<< Can.CWSI(Can.Tcan(Tirt, Ts, Hour.Lsky()), Hour.Tdry(Can.d(),Can.z0()), Hour.Twet(Can.rc(), Can.d(), Can.z0()));
-    ofile << ','<< Hour.eps_atm() << ','<< Can.thetalw() << std::endl;
+    ofile << ','<< Can.thetalw() << std::endl;
   }
   ofile.close();
   ifile.close();
