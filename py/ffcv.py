@@ -68,19 +68,18 @@ def opening_adjust(mat):
 
 def bilat_adjust(mat):
 
-    bilat = cv2.bilateralFilter(mat, 7, 7, 7)
+    bilat = cv2.bilateralFilter(mat, -1, 7, 7)
 
     cv2.namedWindow('bilat')
-    cv2.createTrackbar('n','bilat',0,21,nothing)
     cv2.createTrackbar('sigC','bilat',0,1000,nothing)
-    cv2.createTrackbar('sigD','bilat',0,21,nothing)
+    cv2.createTrackbar('sigD','bilat',0,100,nothing)
     while(1):
         cv2.imshow('bilat',bilat)
         k = cv2.waitKey(1) & 0xFF
         if k == 27:
             break
 
-        n = cv2.getTrackbarPos('n','bilat')
+        n = -1
         sigC = cv2.getTrackbarPos('sigC','bilat')
         sigD = cv2.getTrackbarPos('sigD','bilat')
         bilat = cv2.bilateralFilter(mat, n, sigC, sigD)
