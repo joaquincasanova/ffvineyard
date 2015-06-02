@@ -13,7 +13,6 @@ using namespace std;
 
 double PI = 3.1459265;
 double boltz = 0.00000005670373;// W K-4 m-2
-double boltzd = 0.000000004903;// MJ K-4 m-2 day-1
 double boltzh = 0.0000000002042;// MJ K-4 m-2 h-1
 double vonk = 0.4;
 double Tk = 273.16;
