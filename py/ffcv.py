@@ -12,19 +12,19 @@ def channelops(mat, n, sigC, sigD):
     
     mat=np.float32(mat)
     mat = cv2.bilateralFilter(mat, -1, sigC, sigD)
-    mu = cv2.blur(mat,(n,n))
-    mdiff=mu-mat
-    mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
-    sd = np.float32(cv2.sqrt(mat2))
-    matn=normalize(mat)
-    mun=normalize(mu)
-    sdn=normalize(sd)
+    #mu = cv2.blur(mat,(n,n))
+    #mdiff=mu-mat
+    #mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
+    #sd = np.float32(cv2.sqrt(mat2))
+    #matn=normalize(mat)
+    #mun=normalize(mu)
+    #sdn=normalize(sd)
     
-    matr=mat.reshape((np.size(matn)))
-    mur=mu.reshape((np.size(mun)))
-    sdr=sd.reshape((np.size(sdn)))
+    matr=mat.reshape((np.size(mat)))#n)))
+    #mur=mu.reshape((np.size(mun)))
+    #sdr=sd.reshape((np.size(sdn)))
 
-    features=np.transpose(np.array([matr, mur, sdr]))
+    features=np.transpose(np.array([matr]))#, mur, sdr]))
     return features
 
 def ndvi_calc(imname):

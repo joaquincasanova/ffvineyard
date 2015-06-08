@@ -58,7 +58,7 @@ for imnum in range(34, 104, 10):
             rows, cols = c1.shape
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
             
-            em = cv2.EM(3,cv2.EM_COV_MAT_DIAGONAL)
+            em = cv2.EM(5,cv2.EM_COV_MAT_DIAGONAL)
             ret, ll, result, probs = em.train(test)
             segment=labels_to_rgb(result,rows,cols)
             print "EM segment ", imname
