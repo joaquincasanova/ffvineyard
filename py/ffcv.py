@@ -11,7 +11,7 @@ def normalize(x):
 def channelops(mat, n, sigC, sigD):
     
     mat=np.float32(mat)
-    mat = cv2.bilateralFilter(mat, n, sigC, sigD)
+    mat = cv2.bilateralFilter(mat, -1, sigC, sigD)
     mu = cv2.blur(mat,(n,n))
     mdiff=mu-mat
     mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
@@ -84,10 +84,9 @@ def bilat_adjust(mat):
         sigD = cv2.getTrackbarPos('sigD','bilat')
         bilat = cv2.bilateralFilter(mat, n, sigC, sigD)
 
-
     cv2.destroyAllWindows()
 
-    return bilat, n, sigC, sigD
+    return bilat, sigC, sigD
     
 def canny_contours(mat, n):
     edges = cv2.Canny(mat,25,50,n)
@@ -118,6 +117,11 @@ def labels_to_rgb(labels,rows,cols):
     B=(labels==0)*255
     G=(labels==1)*255
     R=(labels==2)*255
+    
+    B=B+(labels==3)*255
+    G=G+(labels==3)*255
+    R=R+(labels==3)*255
+    
     B=B.reshape((rows,cols))
     G=G.reshape((rows,cols))
     R=R.reshape((rows,cols))
@@ -129,7 +133,7 @@ def labels_to_rgb(labels,rows,cols):
 def rgb_to_labels(segment):
     B,G,R = cv2.split(segment)
    
-    l=(B==255)*0+(G==255)*1+(R==255)*2+(np.logical_and(np.logical_and(B==0, G==0),R==0))*3
+    l=(B==255)*0+(G==255)*1+(R==255)*2+(np.logical_and(np.logical_and(B==255, G==255),R==255))*3+(np.logical_and(np.logical_and(B==0, G==0),R==0))*4
     labels=np.float32(l.reshape(np.size(B))[:,np.newaxis])
     
     return labels

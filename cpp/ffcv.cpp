@@ -21,11 +21,10 @@ double cp = 1005; //J/kg/K
 double rhoa = 1.205; //kg/m3
  
 //asce etsz
-
-class Hourly{
+class Rad{
 public:
-  Hourly(void);
-  ~Hourly(void);
+  Rad(Canopy, int, int, int, int, double, double, double, double);
+  ~Rad(void);
   int D;
   int M;
   int Y;
@@ -33,38 +32,7 @@ public:
   double lat;//deg
   double lonm;//deg-longitude of measurement site
   double lonz;//deg
-  double alb;
-  double Ta;//C
-  double RH;//%
-  double uz;//m/s
-  double z;//m
-  double ZZ;//m
-  double Kc;
   double RsIn;//MJ/m2/h
-  double ET(void){return Kc*ET_o();}//mm
-  double Rn(void){return Rns()-Rnl();}//MJ/m2/h
-  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4.0);}
-  double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn()/(rhoa*cp);}
-  double Twet(double rc, double d, double z0){
-    double tmp1 = rc*ra(d,z0)*gamma()*Rn()/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
-    double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma()*rc+delta()*ra(d,z0));
-    return Ta + tmp1 - tmp2;
-  }
-
-  //private:
-  double u2(void){if(z==2){return uz;}else{return uz*4.87/log(67.8*z-5.42);}} //m/s, m
-  double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
-  double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
-  double gamma(void){return psych*P();}
-  double DT(void){return delta()/(delta()+gamma()*(1+0.34*u2()));}
-  double PT(void){return gamma()/(delta()+gamma()*(1+0.34*u2()));}
-  double TT(void){return (900/(Ta+273))*u2();}
-  double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
-  double e_s(void){return (e_T(Ta));}
-  double e_a(void){return (e_T(Ta)*RH/100)/2;}
-  double ET_rad(void){return DT()*Rng();}
-  double ET_wind(void){return PT()*TT()*(e_s()-e_a());}
-  double ET_o(void){return ET_wind()+ET_rad();}
   int J(void){return D-32+(int)(275*M/9)+2*(int)(3/(M+1))+(int)(M/100-(Y%4)/4+0.975);}
   double Sc(void){
     double b=2*PI*(J()-81)/364;
@@ -118,7 +86,7 @@ public:
     return (0.75+(2e-5)*ZZ)*Rs();}
   double Rns(void){
     if(RsIn<0){return Rso()*(1.0-alb);}
-    else{return RsIn;}
+    else{return RsIn*(1.0-alb);}
   }
   double Rnl(void){
     if (beta()>=0.3){
@@ -128,45 +96,85 @@ public:
     }
   }
   double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
-  double ra(double d, double z0){return 4.72*pow((log((z-d)/z0)/vonk),2)/(1+0.54*uz);}
-  double Rng(void){return 0.408*Rn();}
-
+  double Rn(void){return Rns()-Rnl();}//MJ/m2/h
+  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4.0);}
+  
 };
 
-Hourly::Hourly(void){
+Rad::Rad(Canopy can, int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double RRsIn){
 }
 
-Hourly::~Hourly(void){
+Rad::~Rad(void){
+}
+
+
+class Soil{};
+
+class Air{
+public:
+  Air(void);
+  ~Air(void);
+  double Ta;//C
+  double RH;//%
+  double uz;//m/s
+  double z;//m
+  double ZZ;
+  double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn()/(rhoa*cp);}
+  double Twet(double rc, double d, double z0){
+    double tmp1 = rc*ra(d,z0)*gamma()*Rn()/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
+    double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma()*rc+delta()*ra(d,z0));
+    return Ta + tmp1 - tmp2;
+  }
+
+  //private:
+  double u2(void){if(z==2){return uz;}else{return uz*4.87/log(67.8*z-5.42);}} //m/s, m
+  double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
+  double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
+  double gamma(void){return psych*P();}
+  double DT(void){return delta()/(delta()+gamma()*(1+0.34*u2()));}
+  double PT(void){return gamma()/(delta()+gamma()*(1+0.34*u2()));}
+  double TT(void){return (900/(Ta+273))*u2();}
+  double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
+  double e_s(void){return (e_T(Ta));}
+  double e_a(void){return (e_T(Ta)*RH/100)/2;}
+  double ra(double d, double z0){return 4.72*pow((log((z-d)/z0)/vonk),2)/(1+0.54*uz);}
+};
+
+Air::Air(void){
+}
+
+Air::~Air(void){
 }
 
 class Canopy{
 public:
   Canopy(double,double,double,double,double);
   ~Canopy(void);
+  double x = ;//ellipsoidal leaf angle parameter
   double row;//row width m
   double wc;//foliage width ,
   double fc;//crown fraction
   double ff;//total fraction
   double ke;//extinction
-  double klw;//longwave extinction
   double hc;//foliage height m
+  double Kbe(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
   double alb(void){return 0.2;}//albedo from 
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
+  double omega(double thetar){return ;}
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
-  double fdhc(void){return ff;}
+  double fdhc(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
   double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double z0(void){return 0.13*hc;}
   double d(void){return 0.63*hc;}
-  double rc(void){return 120.0;}//s/m Texeira 2007
-  double thetalw(void){return exp(-klw*row/wc*LAI());}
+  double rc(void){return 120.0;}//s/m Texeira 2007///WRONG use campbell norman
   double Tcan(double Tirt, double Ts, double Lsky){
     double eps_c = 0.98;
     double eps_s = 0.98;
     double eps_i = 0.95;
     double A = 1-fdhc();
-    double B = 0;//(1.0-eps_s)*(1.0-fdhc()+fdhc()*(thetalw()))+(1.0-eps_c)*fdhc();
+    double B = (1.0-eps_s)*(1.0-fdhc())+fdhc()*(1.0-eps_c);
     double Ls = eps_s*boltz*pow(Ts+Tk,4.0);
     double Lirt = eps_i*boltz*pow(Tirt+Tk,4.0);
     double tmp=(Lirt-Lsky*B-Ls*A)/eps_c/fdhc()/boltz;
@@ -190,7 +198,7 @@ Canopy::~Canopy(void){
 
 int main(void){
 
-  Hourly Hour;
+  Air air;
 
   double row;
   double wc;
@@ -209,15 +217,15 @@ int main(void){
   fc=.5;
   ff=.2;
   hc=1.5;
-  Hour.z=2;//m
-  Hour.ZZ=1066;
-  Hour.lat = 35.15;//deg-latitude
-  Hour.lonm = -102.13;
-  Hour.lonz = -90;//deg-longitude of center of time zone
+  air.z=2;//m
+  air.ZZ=1066;
+  air.lat = 35.15;//deg-latitude
+  air.lonm = -102.13;
+  air.lonz = -90;//deg-longitude of center of time zone
 
-  Canopy Can(row, wc, fc, ff, hc);
-  Hour.Kc  = Can.Kc();
-  Hour.alb = Can.alb();
+  Canopy can(row, wc, fc, ff, hc);
+  air.Kc  = can.Kc();
+  air.alb = can.alb();
 
   ifile.open("../data/072014Bushland.csv",ios_base::in); 
   ofile.open("../data/test.csv",ios_base::out);
@@ -226,14 +234,14 @@ int main(void){
   int dum;
   getline(ifile, line);//header
   while (getline(ifile, line)){
-    sscanf(line.c_str(),"%d/%d/%d %d:%d:%d,%lf,%lf,%lf,%lf",&Hour.M,&Hour.D,&Hour.Y,&Hour.H,&dum,&dum,&Hour.RsIn,&Hour.uz,&Hour.Ta,&Hour.RH);  
-    Ts=Hour.Ta;
-    Tirt=Hour.Ta;
-    ofile << Hour.M << '/'<< Hour.D << '/' << Hour.Y << ' ' << Hour.H << ','<< Hour.Rn();
-    ofile << ','<<  Hour.ET() << ','<< Can.LAI() << ',' << Hour.Ta<< ','<< Hour.Tdry(Can.d(),Can.z0());
-    ofile << ','<< Hour.Twet(Can.rc(), Can.d(), Can.z0()) << ','<< Can.Tcan(Tirt, Ts, Hour.Lsky()) << ','<<  Hour.Lsky();
-    ofile << ','<< Can.CWSI(Can.Tcan(Tirt, Ts, Hour.Lsky()), Hour.Tdry(Can.d(),Can.z0()), Hour.Twet(Can.rc(), Can.d(), Can.z0()));
-    ofile << ','<< Can.thetalw() << std::endl;
+    sscanf(line.c_str(),"%d/%d/%d %d:%d:%d,%lf,%lf,%lf,%lf",&air.M,&air.D,&air.Y,&air.H,&dum,&dum,&air.RsIn,&air.uz,&air.Ta,&air.RH);  
+    Ts=air.Ta;
+    Tirt=air.Ta;
+    ofile << air.M << '/'<< air.D << '/' << air.Y << ' ' << air.H << ','<< air.Rn();
+    ofile << ','<<  air.ET() << ','<< can.LAI() << ',' << air.Ta<< ','<< air.Tdry(can.d(),can.z0());
+    ofile << ','<< air.Twet(can.rc(), can.d(), can.z0()) << ','<< can.Tcan(Tirt, Ts, air.Lsky()) << ','<<  air.Lsky();
+    ofile << ','<< can.CWSI(can.Tcan(Tirt, Ts, air.Lsky()), air.Tdry(can.d(),can.z0()), air.Twet(can.rc(), can.d(), can.z0()));
+    ofile << ','<< can.fdhc() << std::endl;
   }
   ofile.close();
   ifile.close();
