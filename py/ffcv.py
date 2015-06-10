@@ -110,7 +110,7 @@ def canny_contours(mat, n):
 
     contours, hierarchy = cv2.findContours(edges,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
-    return contours, minval, maxval
+    return edges, contours, minval, maxval
 
 def labels_to_rgb(labels,rows,cols):
     
