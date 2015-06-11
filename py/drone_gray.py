@@ -40,27 +40,11 @@ while imnum<=264:
     h_eq = cv2.equalizeHist(h)
     testwrite(h_eq, "HQ", imnum, None, None)
   
-    yrows, xcols = gray.shape
-    xsize = 1000
-    ysize = 750 
-    print yrows, xcols
-    I = xcols/xsize
-    J = yrows/ysize
-    for i in range(0,I,1):
-        for j in range(0,J,1): 
-            img_ij = img[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize,:]
-            h_ij = h[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
-            h_eq = cv2.equalizeHist(h_ij)
-##            thresh = cv2.adaptiveThreshold(gray_ij,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,101,0)
-            testwrite(img_ij, "G", imnum, i, j)
-            testwrite(h_eq, "HQ", imnum, i, j)
-            em = cv2.EM(3,cv2.EM_COV_MAT_DIAGONAL)
-            ret, ll, result, probs = em.train(h_eq)
-            segment=labels_to_rgb(result,rows,cols)
-            testwrite(segment, "EM", imnum, i, j)
-
-            h_ij = None
-            img_ij = None
+    ret1,th1 = cv2.threshold(h_eq,127,255,cv2.THRESH_BINARY)
+    ret2,thresh = cv2.threshold(h_eq,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    testwrite(thresh, "OT", imnum, None, None)
+    thresh = cv2.adaptiveThreshold(h_eq,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,101,2)
+    testwrite(thresh, "AT", imnum, None, None)
     h = None
     img = None
 

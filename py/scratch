@@ -1,54 +1,20 @@
-            c1 = cc1[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize] 
-            c3 = cc3[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
 
-            if imnum < 100:
-                oname = "../images/H00790{}_{}_{}.JPG".format(imnum,i,j) 
-            else:
-                oname = "../images/H0079{}_{}_{}.JPG".format(imnum,i,j) 
-            retval=cv2.imwrite(oname,c1)
-            print "Wrote ", oname, retval
+    yrows, xcols = gray.shape
+    xsize = 300
+    ysize = 250 
+    print yrows, xcols
+    I = xcols/xsize
+    J = yrows/ysize
+    for i in range(0,I,1):
+        for j in range(0,J,1): 
+            img_ij = img[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize,:]
+            h_ij = h[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
+            h_eq = cv2.equalizeHist(h_ij)
+            ret1,th1 = cv2.threshold(h_eq,127,255,cv2.THRESH_BINARY)
+            ret2,thresh = cv2.threshold(h_eq,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+            #testwrite(img_ij, "G", imnum, i, j)
+            #testwrite(h_eq, "HQ", imnum, i, j)
+            testwrite(thresh, "AT", imnum, i, j)
 
-            if imnum < 100:
-                oname = "../images/V00790{}_{}_{}.JPG".format(imnum,i,j) 
-            else:
-                oname = "../images/V0079{}_{}_{}.JPG".format(imnum,i,j) 
-            retval=cv2.imwrite(oname,c3)
-            print "Wrote ", oname, retval
-
-            #bilat, sigC, sigD = bilat_adjust(c1)
-            n=5
-            sigC=180
-            sigD=1
-            test = channelops(c1, n, sigC, sigD)
-            n=5
-            sigC=300
-            sigD=3
-            test = np.hstack((test,channelops(c3, n, sigC, sigD)))
-            rows, cols = c1.shape
-            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-            
-            em = cv2.EM(5,cv2.EM_COV_MAT_DIAGONAL)
-            ret, ll, result, probs = em.train(test)
-            segment=labels_to_rgb(result,rows,cols)
-            print "EM segment ", imname
-            if imnum < 100:
-                oname = "../images/EM00790{}_{}_{}.JPG".format(imnum,i,j) 
-            else:
-                oname = "../images/EM0079{}_{}_{}.JPG".format(imnum,i,j) 
-            cv2.imwrite(oname,segment)
-            print "Wrote ", oname
-                
-            ret, result, centers = cv2.kmeans(test, 5, criteria, 1, cv2.KMEANS_RANDOM_CENTERS)
-            segment=labels_to_rgb(result,rows,cols)
-            print "K-means segment ", imname
-            if imnum < 100:
-                oname = "../images/K00790{}_{}_{}.JPG".format(imnum,i,j) 
-            else:
-                oname = "../images/K0079{}_{}_{}.JPG".format(imnum,i,j) 
-            cv2.imwrite(oname,segment)
-            print "Wrote ", oname
-         
-            #edges=canny_contours(c3, n)
-            #binary = rgb_to_binary_2(segment)
-            #opening, no = opening_adjust(np.uint8(binary*255))
-                    
+            h_ij = None
+            img_ij = None
