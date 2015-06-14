@@ -1,6 +1,78 @@
 import cv2
 import numpy as np
 import os
+    
+def fast_adjust(mat):
+    fast = cv2.FastFeatureDetector(50)
+    kp = fast.detect(mat,None)
+    fast_im = cv2.drawKeypoints(mat, kp, color=(255,0,0))
+
+    cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('T','keypoints',0,255,nothing)
+    while(1):
+        cv2.imshow('keypoints',fast_im)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        T = cv2.getTrackbarPos('T','keypoints')
+
+        fast = cv2.FastFeatureDetector(T)
+        kp = fast.detect(mat,None)
+        fast_im = cv2.drawKeypoints(mat, kp, color=(255,0,0))
+
+    cv2.destroyAllWindows()
+
+    return fast_im, T
+    
+def canny_adjust(mat):
+    edges = cv2.Canny(mat,25,50,5)
+
+    cv2.namedWindow('edges',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('n','edges',0,255,nothing)
+    cv2.createTrackbar('MinVal','edges',0,255,nothing)
+    cv2.createTrackbar('MaxVal','edges',0,255,nothing)
+    while(1):
+        cv2.imshow('edges',edges)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        n = cv2.getTrackbarPos('n','edges')
+        minval = cv2.getTrackbarPos('MinVal','edges')
+        maxval = cv2.getTrackbarPos('MaxVal','edges')
+            
+        edges = cv2.Canny(mat,minval,maxval,n)
+
+    cv2.destroyAllWindows()
+
+    return edges, n, minval, maxval
+
+def bilat_adjust(mat):
+
+    bilat = cv2.bilateralFilter(mat, -1, 7, 7)
+
+    cv2.namedWindow('bilat',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('sigC','bilat',0,100,nothing)
+    cv2.createTrackbar('sigD','bilat',0,100,nothing)
+    while(1):
+        cv2.imshow('bilat',bilat)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+  
+        sigC = cv2.getTrackbarPos('sigC','bilat')
+        sigD = cv2.getTrackbarPos('sigD','bilat')
+        bilat = cv2.bilateralFilter(mat, -1, sigC, sigD)
+
+    cv2.destroyAllWindows()
+
+    return bilat, sigC, sigD
+
+def nothing(x):
+    pass
 
 def normalize(x):
     y=(x-np.min(x))/(np.max(x)-np.min(x))*255
@@ -34,71 +106,51 @@ def testwrite(img, pfx, imnum, i, j):
         retval=cv2.imwrite(oname,img)
         print "Wrote ", oname, retval
 
-os.system("rm ../images/*_*_*.JPG")
-os.system("rm ../images/*S*.JPG")
-os.system("rm ../images/*Q*.JPG")
+os.system("rm ../images/*A*.JPG")
+os.system("rm ../images/*H*.JPG")
+os.system("rm ../images/*GC*.JPG")
 
 imnum=34
-if imnum < 100:
+imnum_max=136
+if imnum < imnum_max:
     imname = "../images/G00790{}.JPG".format(imnum) 
 else:
     imname = "../images/G0079{}.JPG".format(imnum)
 print "Img ", imname
 img = cv2.imread(imname)
-while imnum<=264:
-        
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+while imnum<=264:    
+    if img==None:
+        break
+
     hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
     lab = cv2.cvtColor(img,cv2.COLOR_BGR2LAB)
     h,s,v = cv2.split(hsv)
-    l,a,b = cv2.split(hsv)
-    a = cv2.bilateralFilter(a, -1, 180, 3)        
-    #h_eq = cv2.equalizeHist(h)
-    #a_eq = cv2.equalizeHist(a)
-    testwrite(h, "H", imnum, None, None) 
-    testwrite(s, "S", imnum, None, None) 
-    testwrite(v, "V", imnum, None, None) 
-    testwrite(l, "L", imnum, None, None) 
-    testwrite(a, "A", imnum, None, None) 
-    testwrite(b, "B", imnum, None, None)     
-
-    surf=cv2.SURF(8000)
-    kp, des = surf.detectAndCompute(a,None)
-    surf_im = cv2.drawKeypoints(a,kp,None,(255,0,0),4)
-    testwrite(surf_im, "SURF", imnum, None, None)
-    #sdn = localSD(gray, 101)
-    #testwrite(sdn, "SDN", imnum, None, None)
-##    
-##    yrows, xcols = gray.shape
-##    xsize = 1000
-##    ysize = 750 
-##    print yrows, xcols
-##    I = xcols/xsize
-##    J = yrows/ysize
-##    for i in range(0,I,1):
-##        for j in range(0,J,1): 
-##            img_ij = img[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize,:]
-##            h_ij = h[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
-##            gray_ij = gray[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
-##            h_eq = cv2.equalizeHist(h_ij)
-##            testwrite(gray_ij, "G", imnum, i, j)
-##            testwrite(h_eq, "HQ", imnum, i, j)
-##            surf=cv2.SURF(8000)
-##            kp, des = surf.detectAndCompute(h_eq,None)
-##            surf_ij = cv2.drawKeypoints(h_eq,kp,None,(255,0,0),4)
-##            testwrite(surf_ij, "S", imnum, i, j)
-##            sdn = localSD(gray_ij, 101)
-##            testwrite(sdn, "SDN", imnum, i, j)
-##            
-##            h_ij = None
-##            img_ij = None
-##            gray_ij = None
-##            kp = None
-##            des = None
+    l,a,b = cv2.split(lab) 
+    a=cv2.equalizeHist(a) 
+    h=cv2.equalizeHist(h)
+    testwrite(a, "A", imnum, None, None)
+    testwrite(h, "H", imnum, None, None)
+        
+    if imnum==34:
+        ab, sigC, sigD = bilat_adjust(a)
+        af, T = fast_adjust(ab) 
+        ae, n, minval, maxval = canny_adjust(ab)
+        testwrite(ab, "AB", imnum, None, None)
+        testwrite(af, "AF", imnum, None, None)
+        testwrite(ae, "AE", imnum, None, None)
+    else:
+        ab = cv2.bilateralFilter(a, -1, sigC, sigD)
+        ae = cv2.Canny(ab,minval,maxval,n)
+        fast = cv2.FastFeatureDetector(T)
+        kp = fast.detect(ab,None)
+        af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
+        testwrite(ab, "AB", imnum, None, None)
+        testwrite(ae, "AE", imnum, None, None)
+        testwrite(af, "AF", imnum, None, None)
 
     img = None
     
-    while img == None and imnum<264:
+    while img == None and imnum<imnum_max:
         imnum=imnum+1
         if imnum < 100:
             imname = "../images/G00790{}.JPG".format(imnum) 
@@ -106,4 +158,5 @@ while imnum<=264:
             imname = "../images/G0079{}.JPG".format(imnum)
         print "Img ", imname
         img = cv2.imread(imname)
+    
     
