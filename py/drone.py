@@ -200,7 +200,7 @@ while imnum<=264:
     ksize=(4*sigD+1,4*sigD+1)
     ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
     ae = cv2.Canny(ab,minval,maxval,N)
-    retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
+    retval,at = cv2.threshold(ab,t,255,cv2.THRESH_BINARY_INV)
     fast = cv2.FastFeatureDetector(T)
     kp = fast.detect(ab,None)
     af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
@@ -218,11 +218,21 @@ while imnum<=264:
     print yrows, xcols
     I = xcols/xsize
     J = yrows/ysize
+    lg, tg = 0, 0
     for i in range(0,I,1):
         for j in range(0,J,1): 
             ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
-            print i,j,np.sum(ao_ij)/xsize/ysize
-
+            tp = xsize*ysize
+            fg = 1-np.sum(ao_ij)/tp/255
+            print fg
+            if fg>.75:
+                lg=lg+tp-np.sum(ao_ij)/255
+            tg = tg+tp-np.sum(ao_ij)/255
+            
+    tp = yrows*xcols
+    ff = 1-tg/tp
+    fc = 1-lg/tp
+    print ff, fc
     img = None
     
     while img == None and imnum<imnum_max:
