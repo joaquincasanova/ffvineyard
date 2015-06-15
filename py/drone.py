@@ -6,7 +6,7 @@ def opening_adjust(mat):
 
     kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
 
-    cv2.namedWindow('open')
+    cv2.namedWindow('open',cv2.WINDOW_NORMAL)
     opening = cv2.morphologyEx(mat, cv2.MORPH_OPEN, kernel)
     cv2.createTrackbar('n','open',0,50,nothing)
     while(1):
@@ -70,9 +70,9 @@ def canny_adjust(mat):
     edges = cv2.Canny(mat,25,50,5)
 
     cv2.namedWindow('edges',cv2.WINDOW_NORMAL)
-    cv2.createTrackbar('n','edges',0,255,nothing)
-    cv2.createTrackbar('MinVal','edges',0,255,nothing)
-    cv2.createTrackbar('MaxVal','edges',0,255,nothing)
+    cv2.createTrackbar('n','edges',0,25,nothing)
+    cv2.createTrackbar('MinVal','edges',0,1000,nothing)
+    cv2.createTrackbar('MaxVal','edges',0,1000,nothing)
     while(1):
         cv2.imshow('edges',edges)
         k = cv2.waitKey(1) & 0xFF
@@ -166,18 +166,8 @@ def testwrite(img, pfx, imnum, i, j):
         retval=cv2.imwrite(oname,img)
         print "Wrote ", oname, retval
 
-os.system("rm ../images/*A*.JPG")
-os.system("rm ../images/*H*.JPG")
-os.system("rm ../images/*a*.JPG")
-os.system("rm ../images/*L*.JPG")
-os.system("rm ../images/*S*.JPG")
-os.system("rm ../images/*V*.JPG")
-os.system("rm ../images/*GC*.JPG")
-os.system("rm ../images/*B*.JPG")
-os.system("rm ../images/*b*.JPG")
-
 imnum=34
-imnum_max=136
+imnum_max=264
 if imnum < imnum_max:
     imname = "../images/G00790{}.JPG".format(imnum) 
 else:
@@ -188,6 +178,9 @@ while imnum<=264:
     if img==None:
         break
 
+    img = cv2.pyrDown(img)
+    img = cv2.pyrDown(img)
+
     hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
     lab = cv2.cvtColor(img,cv2.COLOR_BGR2LAB)
     h,s,v = cv2.split(hsv)
@@ -196,29 +189,39 @@ while imnum<=264:
     h=cv2.equalizeHist(h)
     testwrite(a, "A", imnum, None, None)
     testwrite(h, "H", imnum, None, None)
-        
-    if imnum==34:
-        #ab, sigD = abf_adjust(a)
-        sigD = 12 
-        ksize=(4*sigD+1,4*sigD+1)
-        ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
-        af, T = fast_adjust(ab) 
-        #ae, n, minval, maxval = canny_adjust(ab)
-        at, t = thresh_adjust(ab)
-        testwrite(ab, "AB", imnum, None, None)
-        testwrite(af, "AF", imnum, None, None)
-        testwrite(at, "AT", imnum, None, None)
-    else:
-        ksize=(4*sigD+1,4*sigD+1)
-        ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
-        #ae = cv2.Canny(ab,minval,maxval,n)
-        retval,at = cv2.threshold(ab,t,255,cv2.THRESH_BINARY_INV)
-        fast = cv2.FastFeatureDetector(T)
-        kp = fast.detect(ab,None)
-        af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
-        testwrite(ab, "AB", imnum, None, None)
-        testwrite(at, "AT", imnum, None, None)
-        testwrite(af, "AF", imnum, None, None)
+  
+    sigD=2
+    T=101
+    N=3
+    minval=800
+    maxval=200
+    t=25
+    n=2
+    ksize=(4*sigD+1,4*sigD+1)
+    ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
+    ae = cv2.Canny(ab,minval,maxval,N)
+    retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
+    fast = cv2.FastFeatureDetector(T)
+    kp = fast.detect(ab,None)
+    af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
+    kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(2*n+1,2*n+1))
+    ao = cv2.morphologyEx(at, cv2.MORPH_OPEN, kernel)
+
+    testwrite(ab, "AB", imnum, None, None)
+    testwrite(at, "AT", imnum, None, None)
+    testwrite(af, "AF", imnum, None, None)
+    testwrite(ao, "AO", imnum, None, None)
+
+    yrows, xcols = ao.shape
+    xsize = 75
+    ysize = 80 
+    print yrows, xcols
+    I = xcols/xsize
+    J = yrows/ysize
+    for i in range(0,I,1):
+        for j in range(0,J,1): 
+            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
+            print i,j,np.sum(ao_ij)/xsize/ysize
 
     img = None
     
