@@ -157,14 +157,14 @@ def testwrite(img, pfx, imnum, i, j):
         else:
             oname = "../images/out/{}0079{}.JPG".format(pfx,imnum) 
         retval=cv2.imwrite(oname,img)
-        print "Wrote ", oname, retval        
+        #print "Wrote ", oname, retval        
     else:   
         if imnum < 100:
             oname = "../images/out/{}00790{}_{}_{}.JPG".format(pfx,imnum,i,j) 
         else:
             oname = "../images/out/{}0079{}_{}_{}.JPG".format(pfx,imnum,i,j) 
         retval=cv2.imwrite(oname,img)
-        print "Wrote ", oname, retval
+        #print "Wrote ", oname, retval
 
 imnum=34
 imnum_max=264
@@ -213,6 +213,14 @@ while imnum<=264:
     testwrite(ao, "AO", imnum, None, None)
 
     yrows, xcols = ao.shape
+    border = np.floor(xcols/7.5)
+    ao[:,0:border-1] = np.zeros_like(ao[:,0:border-1])
+    ao[:,xcols-border:xcols-1] = np.zeros_like(ao[:,xcols-border:xcols-1])
+    testwrite(ao, "ANB", imnum, None, None)
+    contours,hierarchy = cv2.findContours(ao, 1, 2) 
+    cnt = contours[0]   
+    M = cv2.moments(cnt)    
+    print M
     xsize = 75
     ysize = 80 
     print yrows, xcols
@@ -221,17 +229,18 @@ while imnum<=264:
     lg, tg = 0, 0
     for i in range(0,I,1):
         for j in range(0,J,1): 
-            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
+            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]/255
             tp = xsize*ysize
-            fg = 1-np.sum(ao_ij)/tp/255
-            print fg
+            gp = tp-np.sum(ao_ij)
+            fg = (tp)/(gp)
             if fg>.75:
-                lg=lg+tp-np.sum(ao_ij)/255
-            tg = tg+tp-np.sum(ao_ij)/255
+                lg=lg+gp
+            tg = tg+gp
             
-    tp = yrows*xcols
-    ff = 1-tg/tp
-    fc = 1-lg/tp
+           # print tp,np.sum(ao_ij),gp,lg,tg
+    TP = yrows*xcols
+    ff = 1-(tg)/(TP)
+    fc = 1-lg/TP
     print ff, fc
     img = None
     
