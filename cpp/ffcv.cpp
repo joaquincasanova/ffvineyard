@@ -23,7 +23,7 @@ double rhoa = 1.205; //kg/m3
 //asce etsz
 class Rad{
 public:
-  Rad(Canopy, int, int, int, int, double, double, double, double);
+  Rad(int, int, int, int, double, double, double, double);
   ~Rad(void);
   int D;
   int M;
@@ -84,7 +84,7 @@ public:
   }
   double Rso(void){
     return (0.75+(2e-5)*ZZ)*Rs();}
-  double Rns(void){
+  double Rns(double alb){
     if(RsIn<0){return Rso()*(1.0-alb);}
     else{return RsIn*(1.0-alb);}
   }
@@ -101,27 +101,39 @@ public:
   
 };
 
-Rad::Rad(Canopy can, int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double RRsIn){
+Rad::Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double RRsIn){
+  int D=DD;
+  int M=MM;
+  int Y=YY;
+  int H=HH;
+  double lat=llat;//deg
+  double lonm=llonm;//deg-longitude of measurement site
+  double lonz=llonz;//deg
+  double RsIn=RRsIn;//MJ/m2/h
 }
 
 Rad::~Rad(void){
 }
 
 
-class Soil{};
+class Soil{
+  double Ts();
+  double us();
+  double rs();
+};
 
 class Air{
 public:
-  Air(void);
+  Air(double, double, double, double, double);
   ~Air(void);
   double Ta;//C
   double RH;//%
   double uz;//m/s
   double z;//m
   double ZZ;
-  double Tdry(double d, double z0){return Ta+ra(d, z0)*Rn()/(rhoa*cp);}
-  double Twet(double rc, double d, double z0){
-    double tmp1 = rc*ra(d,z0)*gamma()*Rn()/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
+  double Tdry(double d, double z0, double Rn){return Ta+ra(d, z0)*Rn/(rhoa*cp);}
+  double Twet(double rc, double d, double z0, double Rn){
+    double tmp1 = rc*ra(d,z0)*gamma()*Rn/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
     double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma()*rc+delta()*ra(d,z0));
     return Ta + tmp1 - tmp2;
   }
@@ -140,7 +152,12 @@ public:
   double ra(double d, double z0){return 4.72*pow((log((z-d)/z0)/vonk),2)/(1+0.54*uz);}
 };
 
-Air::Air(void){
+Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ){
+  double Ta = TTa;//C
+  double RH = RRH;//%
+  double uz = uuz;//m/s
+  double z = zz;//m
+  double ZZ = zzz;//m
 }
 
 Air::~Air(void){
@@ -150,7 +167,7 @@ class Canopy{
 public:
   Canopy(double,double,double,double,double);
   ~Canopy(void);
-  double x = ;//ellipsoidal leaf angle parameter
+  double x;//ellipsoidal leaf angle parameter
   double row;//row width m
   double wc;//foliage width ,
   double fc;//crown fraction
@@ -160,24 +177,30 @@ public:
   double Kbe(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
   double alb(void){return 0.2;}//albedo from 
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
-  double omega(double thetar){return ;}
+  double omega(double thetar){
+    double D = 1;
+    double p = 3.80 - 0.46*D;
+    double tmp1 = omega0()+(1-omega0())*exp(-2.2*pow(thetar,p))
+      return omega0()/tmp1;
+  }
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
-  double fdhc(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
+  double fveg(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
   double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double z0(void){return 0.13*hc;}
   double d(void){return 0.63*hc;}
-  double rc(void){return 120.0;}//s/m Texeira 2007///WRONG use campbell norman
+  double uc(void){;}
+  double rc(void){;}//s/m Texeira 2007///WRONG use campbell norman
   double Tcan(double Tirt, double Ts, double Lsky){
     double eps_c = 0.98;
     double eps_s = 0.98;
     double eps_i = 0.95;
-    double A = 1-fdhc();
-    double B = (1.0-eps_s)*(1.0-fdhc())+fdhc()*(1.0-eps_c);
+    double A = 1-fveg();
+    double B = (1.0-eps_s)*(1.0-fveg())+fveg()*(1.0-eps_c);
     double Ls = eps_s*boltz*pow(Ts+Tk,4.0);
     double Lirt = eps_i*boltz*pow(Tirt+Tk,4.0);
-    double tmp=(Lirt-Lsky*B-Ls*A)/eps_c/fdhc()/boltz;
+    double tmp=(Lirt-Lsky*B-Ls*A)/eps_c/fveg()/boltz;
     return pow(tmp,0.25)-Tk;
   }
 };
@@ -189,7 +212,7 @@ Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
   ff=ff1;
   hc=hc1;
   ke=0.7;
-  klw=0.95;
+  x=2;
 }
 
 Canopy::~Canopy(void){
@@ -198,15 +221,9 @@ Canopy::~Canopy(void){
 
 int main(void){
 
-  Air air;
-
-  double row;
-  double wc;
-  double fc;
-  double ff;
-  double hc;
-  double Ts;
-  double Tirt;
+  Air air(Ta, RH, uz, z, ZZ)
+  Rad rad(Y, M, D, H, lat, lonm, lonz, RsIn)
+  Canopy can(row, wc, fc, ff, hc);
    
   ifstream ifile;
   ofstream ofile;
@@ -223,7 +240,6 @@ int main(void){
   air.lonm = -102.13;
   air.lonz = -90;//deg-longitude of center of time zone
 
-  Canopy can(row, wc, fc, ff, hc);
   air.Kc  = can.Kc();
   air.alb = can.alb();
 

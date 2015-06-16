@@ -18,6 +18,7 @@ def opening_adjust(mat):
         n = cv2.getTrackbarPos('n','open')
         kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(2*n+1,2*n+1))
         opening = cv2.morphologyEx(mat, cv2.MORPH_OPEN, kernel)
+        opening = opening/255
 
     cv2.destroyAllWindows()
 
@@ -37,7 +38,8 @@ def thresh_adjust(mat):
             # get current positions of four trackbars
         T = cv2.getTrackbarPos('T','thresh')
         retval,thresh = cv2.threshold(mat,T,255,cv2.THRESH_BINARY_INV)    
-        
+
+    retval,thresh = cv2.threshold(mat,T,1,cv2.THRESH_BINARY_INV)    
     cv2.destroyAllWindows()
 
     return thresh, T
@@ -165,7 +167,7 @@ def testwrite(img, pfx, imnum, i, j):
             oname = "../images/out/{}0079{}_{}_{}.JPG".format(pfx,imnum,i,j) 
         retval=cv2.imwrite(oname,img)
         #print "Wrote ", oname, retval
-
+os.system("rm ../images/out/*.JPG")
 imnum=34
 imnum_max=264
 if imnum < imnum_max:
@@ -191,16 +193,17 @@ while imnum<=264:
     testwrite(h, "H", imnum, None, None)
   
     sigD=2
-    T=101
-    N=3
-    minval=800
-    maxval=200
-    t=25
-    n=2
+    T=121
+    t=27
+    n=3
+    
+    #ab, sigD = abf_adjust(a)
+    #af, T = fast_adjust(ab)
+    #at, t = thresh_adjust(ab)
+    #ao, n = opening_adjust(at*255)
     ksize=(4*sigD+1,4*sigD+1)
     ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
-    ae = cv2.Canny(ab,minval,maxval,N)
-    retval,at = cv2.threshold(ab,t,255,cv2.THRESH_BINARY_INV)
+    retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
     fast = cv2.FastFeatureDetector(T)
     kp = fast.detect(ab,None)
     af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
@@ -208,39 +211,32 @@ while imnum<=264:
     ao = cv2.morphologyEx(at, cv2.MORPH_OPEN, kernel)
 
     testwrite(ab, "AB", imnum, None, None)
-    testwrite(at, "AT", imnum, None, None)
+    testwrite(at*255, "AT", imnum, None, None)
     testwrite(af, "AF", imnum, None, None)
-    testwrite(ao, "AO", imnum, None, None)
+    testwrite(ao*255, "AO", imnum, None, None)
 
     yrows, xcols = ao.shape
-    border = np.floor(xcols/7.5)
-    ao[:,0:border-1] = np.zeros_like(ao[:,0:border-1])
-    ao[:,xcols-border:xcols-1] = np.zeros_like(ao[:,xcols-border:xcols-1])
-    testwrite(ao, "ANB", imnum, None, None)
     contours,hierarchy = cv2.findContours(ao, 1, 2) 
     cnt = contours[0]   
-    M = cv2.moments(cnt)    
-    print M
+    M = cv2.moments(cnt)
     xsize = 75
     ysize = 80 
-    print yrows, xcols
+    tp = xsize*ysize
     I = xcols/xsize
     J = yrows/ysize
     lg, tg = 0, 0
     for i in range(0,I,1):
         for j in range(0,J,1): 
-            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]/255
-            tp = xsize*ysize
+            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
             gp = tp-np.sum(ao_ij)
             fg = (tp)/(gp)
             if fg>.75:
                 lg=lg+gp
             tg = tg+gp
-            
-           # print tp,np.sum(ao_ij),gp,lg,tg
     TP = yrows*xcols
-    ff = 1-(tg)/(TP)
+    ff = 1-tg/TP
     fc = 1-lg/TP
+
     print ff, fc
     img = None
     
