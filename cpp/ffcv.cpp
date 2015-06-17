@@ -11,12 +11,11 @@
 
 using namespace std;
 
-double PI = 3.1459265;
+double pi = 3.1459265;
 double boltz = 0.00000005670373;// W K-4 m-2
-double boltzh = 0.0000000002042;// MJ K-4 m-2 h-1
 double vonk = 0.4;
 double Tk = 273.16;
-double psych = 0.000665;
+double gamma = 0.000665;
 double cp = 1005; //J/kg/K
 double rhoa = 1.205; //kg/m3
  
@@ -35,16 +34,16 @@ public:
   double RsIn;//MJ/m2/h
   int J(void){return D-32+(int)(275*M/9)+2*(int)(3/(M+1))+(int)(M/100-(Y%4)/4+0.975);}
   double Sc(void){
-    double b=2*PI*(J()-81)/364;
+    double b=2*pi*(J()-81)/364;
     return 0.1645*sin(2*b)-0.1255*cos(b)-0.025*sin(b);
   }//hour
-  double dr(void){return 1+0.033*cos(2*PI/365*J());}
-  double dec(void){return 0.409*sin(2*PI/365*J()-1.39);}
-  double phi(void){return PI/180*lat;}
-  double omega(void){return PI/12*(H+0.06667*(lonz-lonm)+Sc()-12);}
+  double dr(void){return 1+0.033*cos(2*pi/365*J());}
+  double dec(void){return 0.409*sin(2*pi/365*J()-1.39);}
+  double phi(void){return pi/180*lat;}
+  double omega(void){return pi/12*(H+0.06667*(lonz-lonm)+Sc()-12);}
   double omega_s(void){return acos(-tan(phi())*tan(dec()));}
   double omega_1(void){
-    double tmp=omega()-PI*H/24; 
+    double tmp=omega()-pi*H/24; 
     if(tmp<-omega_s()){
       tmp=-omega_s();
     }
@@ -54,7 +53,7 @@ public:
     return tmp;
   }
   double omega_2(void){
-    double tmp=omega()+PI*H/24;
+    double tmp=omega()+pi*H/24;
     if(tmp<-omega_s()){
       tmp=-omega_s();
     }
@@ -69,7 +68,7 @@ public:
   double Rs(void){
     double tmp1 = (omega_2()-min(omega_1(),omega_2()))*sin(phi())*sin(dec());
     double tmp2 = (sin(omega_2()-min(omega_1(),omega_2())))*cos(phi())*cos(dec());
-    return 12/PI*0.0820*dr()*(tmp1+tmp2);
+    return 12/pi*0.0820*dr()*(tmp1+tmp2);
   }
   double fcd(void){
     return (1.35*Rs()/Rso()-0.35);
@@ -117,9 +116,14 @@ Rad::~Rad(void){
 
 
 class Soil{
-  double Ts();
-  double us();
-  double rs();
+  double T();
+  double us(double uc, double hc, double LAI, double leaf, double hc){
+    a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
+    return uc*exp(-a*(1-0.05/hc))};
+  double rs(double uc, double hc, double LAI, double leaf, double hc){
+    double ap = 0.004;
+    double bp = 0.012;
+    return 1/(ap+bp*us(uc, hc, LAI, leaf, hc));}
 };
 
 class Air{
@@ -133,8 +137,8 @@ public:
   double ZZ;
   double Tdry(double d, double z0, double Rn){return Ta+ra(d, z0)*Rn/(rhoa*cp);}
   double Twet(double rc, double d, double z0, double Rn){
-    double tmp1 = rc*ra(d,z0)*gamma()*Rn/(rhoa*cp*(gamma()*rc+delta()*ra(d,z0)));
-    double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma()*rc+delta()*ra(d,z0));
+    double tmp1 = rc*ra(d,z0)*gamma*Rn/(rhoa*cp*(gamma*rc+delta()*ra(d,z0)));
+    double tmp2 = ra(d,z0)*(e_s()-e_a())/(gamma*rc+delta()*ra(d,z0));
     return Ta + tmp1 - tmp2;
   }
 
@@ -142,14 +146,16 @@ public:
   double u2(void){if(z==2){return uz;}else{return uz*4.87/log(67.8*z-5.42);}} //m/s, m
   double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
   double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
-  double gamma(void){return psych*P();}
-  double DT(void){return delta()/(delta()+gamma()*(1+0.34*u2()));}
-  double PT(void){return gamma()/(delta()+gamma()*(1+0.34*u2()));}
+  double DT(void){return delta()/(delta()+gamma*(1+0.34*u2()));}
+  double PT(void){return gamma/(delta()+gamma*(1+0.34*u2()));}
   double TT(void){return (900/(Ta+273))*u2();}
   double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
   double e_s(void){return (e_T(Ta));}
   double e_a(void){return (e_T(Ta)*RH/100)/2;}
-  double ra(double d, double z0){return 4.72*pow((log((z-d)/z0)/vonk),2)/(1+0.54*uz);}
+  double zm(double hc){return 0.13*hc;}
+  double zh(double hc){return zm(hc)/7;}
+  double d(double hc){return 0.65*hc;}
+    double ra(double hc){return 4.72*pow((log((z-d(hc))/zm(hc))/vonk),2)/(1+0.54*uz);}
 };
 
 Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ){
@@ -170,6 +176,7 @@ public:
   double x;//ellipsoidal leaf angle parameter
   double row;//row width m
   double wc;//foliage width ,
+  double leaf;//leaf size
   double fc;//crown fraction
   double ff;//total fraction
   double ke;//extinction
@@ -188,11 +195,16 @@ public:
   double fveg(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
   double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
-  double z0(void){return 0.13*hc;}
-  double d(void){return 0.63*hc;}
-  double uc(void){;}
-  double rc(void){;}//s/m Texeira 2007///WRONG use campbell norman
-  double Tcan(double Tirt, double Ts, double Lsky){
+  double zm(){return 0.13*hc;}
+  double zh(){return zm()/7;}
+  double d(){return 0.65*hc;}
+  double uc(double uz, double z){return uz*(log((hc-d())/zm()))/(log((z-d())/zm()));}
+  double rc(void){
+    double C = 90;//sqrt(s)/m grace 1981 via campbell norman 95
+    double a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
+    double udzm = uc()*exp(-a*(1-(d+zm())/hc));
+    return C/LAI()*sqrt(leaf/udzm);}
+  double T(double Tirt, double Ts, double Lsky){
     double eps_c = 0.98;
     double eps_s = 0.98;
     double eps_i = 0.95;
