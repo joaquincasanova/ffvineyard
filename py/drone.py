@@ -159,14 +159,14 @@ def testwrite(img, pfx, imnum, i, j):
         else:
             oname = "../images/out/{}0079{}.JPG".format(pfx,imnum) 
         retval=cv2.imwrite(oname,img)
-        #print "Wrote ", oname, retval        
+        print "Wrote ", oname, retval        
     else:   
         if imnum < 100:
             oname = "../images/out/{}00790{}_{}_{}.JPG".format(pfx,imnum,i,j) 
         else:
             oname = "../images/out/{}0079{}_{}_{}.JPG".format(pfx,imnum,i,j) 
         retval=cv2.imwrite(oname,img)
-        #print "Wrote ", oname, retval
+        print "Wrote ", oname, retval
 os.system("rm ../images/out/*.JPG")
 imnum=34
 imnum_max=264
@@ -197,10 +197,6 @@ while imnum<=264:
     t=27
     n=3
     
-    #ab, sigD = abf_adjust(a)
-    #af, T = fast_adjust(ab)
-    #at, t = thresh_adjust(ab)
-    #ao, n = opening_adjust(at*255)
     ksize=(4*sigD+1,4*sigD+1)
     ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
     retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
@@ -208,36 +204,67 @@ while imnum<=264:
     kp = fast.detect(ab,None)
     af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
     kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(2*n+1,2*n+1))
-    ao = cv2.morphologyEx(at, cv2.MORPH_OPEN, kernel)
-
+    #ao = cv2.morphologyEx(at, cv2.MORPH_OPEN, kernel)
+    ad = cv2.dilate(at, kernel, iterations = 4)
+    ao = cv2.erode(ad, kernel, iterations = 4)
     testwrite(ab, "AB", imnum, None, None)
     testwrite(at*255, "AT", imnum, None, None)
     testwrite(af, "AF", imnum, None, None)
     testwrite(ao*255, "AO", imnum, None, None)
 
-    yrows, xcols = ao.shape
-    contours,hierarchy = cv2.findContours(ao, 1, 2) 
-    cnt = contours[0]   
-    M = cv2.moments(cnt)
-    xsize = 75
-    ysize = 80 
-    tp = xsize*ysize
-    I = xcols/xsize
-    J = yrows/ysize
-    lg, tg = 0, 0
-    for i in range(0,I,1):
-        for j in range(0,J,1): 
-            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
-            gp = tp-np.sum(ao_ij)
-            fg = (tp)/(gp)
-            if fg>.75:
-                lg=lg+gp
-            tg = tg+gp
-    TP = yrows*xcols
-    ff = 1-tg/TP
-    fc = 1-lg/TP
+    contours, hierarchy = cv2.findContours(ao,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    areaMax = 0.0
+    areaSec = 0.0
+    areaTrd = 0.0
+    maxLoc = 0
+    secLoc = 0
+    trdLoc = 0
+    idx=0
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area>areaMax:
+            areaMax=area
+            maxLoc = idx
+        else:
+            if area>areaSec:
+                areaSec=area
+                secLoc = idx
+            else:                
+                if area>areaTrd:
+                    areaTrd=area
+                    trdLoc = idx
+                else:
+                    pass
+            
+                    
+        idx=idx+1
 
-    print ff, fc
+    print maxLoc, areaMax, secLoc, areaSec, trdLoc, areaTrd            
+    cv2.drawContours(img, contours, maxLoc, (0,255,0), 3)    
+    cv2.drawContours(img, contours, secLoc, (0,0,255), 3)   
+    cv2.drawContours(img, contours, trdLoc, (255,0,0), 3)
+    testwrite(img, "AC", imnum, None, None)
+
+##    yrows, xcols = ao.shape
+##    xsize = 75
+##    ysize = 80 
+##    tp = xsize*ysize
+##    I = xcols/xsize
+##    J = yrows/ysize
+##    lg, tg = 0, 0
+##    for i in range(0,I,1):
+##        for j in range(0,J,1): 
+##            ao_ij = ao[j*(ysize-1):j*(ysize-1)+ysize,i*(xsize-1):i*(xsize-1)+xsize]
+##            gp = tp-np.sum(ao_ij)
+##            fg = (tp)/(gp)
+##            if fg>.75:
+##                lg=lg+gp
+##            tg = tg+gp
+##    TP = yrows*xcols
+##    ff = 1-tg/TP
+##    fc = 1-lg/TP
+##
+##    print ff, fc
     img = None
     
     while img == None and imnum<imnum_max:
