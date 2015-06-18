@@ -24,7 +24,7 @@ def opening_adjust(mat):
 
     return opening, n
 
-def thresh_adjust(mat):
+def thresh_adjust_inv(mat):
     retval,thresh = cv2.threshold(mat,127,255,cv2.THRESH_BINARY_INV)
     
     cv2.namedWindow('thresh',cv2.WINDOW_NORMAL)
@@ -40,6 +40,25 @@ def thresh_adjust(mat):
         retval,thresh = cv2.threshold(mat,T,255,cv2.THRESH_BINARY_INV)    
 
     retval,thresh = cv2.threshold(mat,T,1,cv2.THRESH_BINARY_INV)    
+    cv2.destroyAllWindows()
+
+    return thresh, T
+def thresh_adjust(mat):
+    retval,thresh = cv2.threshold(mat,127,255,cv2.THRESH_BINARY)
+    
+    cv2.namedWindow('thresh',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('T','thresh',0,255,nothing)
+    while(1):
+        cv2.imshow('thresh',thresh)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        T = cv2.getTrackbarPos('T','thresh')
+        retval,thresh = cv2.threshold(mat,T,255,cv2.THRESH_BINARY)    
+
+    retval,thresh = cv2.threshold(mat,T,1,cv2.THRESH_BINARY)    
     cv2.destroyAllWindows()
 
     return thresh, T
@@ -195,11 +214,25 @@ while imnum<=264:
     sigD=2
     T=121
     t=27
-    n=3
+    n=2
     
     ksize=(4*sigD+1,4*sigD+1)
     ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
     retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
+    ht = thresh_adjust(h)
+    lines = cv2.HoughLines(ht,1,np.pi/180,200)
+    for rho,theta in lines[0]:
+        aa = np.cos(theta)
+        bb = np.sin(theta)
+        x0 = aa*rho
+        y0 = bb*rho
+        x1 = int(x0 + 1000*(-bb))
+        y1 = int(y0 + 1000*(aa))
+        x2 = int(x0 - 1000*(-bb))
+        y2 = int(y0 - 1000*(aa))
+
+        cv2.line(img,(x1,y1),(x2,y2),(255,255,255),2)
+    testwrite(img, "HL", imnum, None, None)
     fast = cv2.FastFeatureDetector(T)
     kp = fast.detect(ab,None)
     af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
@@ -211,38 +244,44 @@ while imnum<=264:
     testwrite(at*255, "AT", imnum, None, None)
     testwrite(af, "AF", imnum, None, None)
     testwrite(ao*255, "AO", imnum, None, None)
-
+    area = np.zeros([3,1])
+    loc = np.zeros([3,1])
+    cx = np.zeros([3,1])
+    cy = np.zeros([3,1])
+    
     contours, hierarchy = cv2.findContours(ao,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-    areaMax = 0.0
-    areaSec = 0.0
-    areaTrd = 0.0
-    maxLoc = 0
-    secLoc = 0
-    trdLoc = 0
+    area[0] = 0.0
+    area[1] = 0.0
+    area[2] = 0.0
+    loc[0] = 0
+    loc[1] = 0
+    loc[2] = 0
     idx=0
     for c in contours:
-        area = cv2.contourArea(c)
-        if area>areaMax:
-            areaMax=area
-            maxLoc = idx
+        atest = cv2.contourArea(c)
+        if atest>area[0]:
+            area[0]=atest
+            loc[0] = idx
         else:
-            if area>areaSec:
-                areaSec=area
-                secLoc = idx
+            if atest>area[1]:
+                area[1]=atest
+                loc[1] = idx
             else:                
-                if area>areaTrd:
-                    areaTrd=area
-                    trdLoc = idx
+                if atest>area[2]:
+                    area[2]=atest
+                    loc[2] = idx
                 else:
-                    pass
-            
+                    pass            
                     
         idx=idx+1
-
-    print maxLoc, areaMax, secLoc, areaSec, trdLoc, areaTrd            
-    cv2.drawContours(img, contours, maxLoc, (0,255,0), 3)    
-    cv2.drawContours(img, contours, secLoc, (0,0,255), 3)   
-    cv2.drawContours(img, contours, trdLoc, (255,0,0), 3)
+    for i in [0, 1, 2]:
+        M = cv2.moments(contours[int(loc[i])])
+        cx[i] = int(M['m10']/M['m00'])
+        cy[i] = int(M['m01']/M['m00']) 
+        print area[i], cx[i], cy[i]
+    cv2.drawContours(img, contours, int(loc[0]), (0,255,0), 3)    
+    cv2.drawContours(img, contours, int(loc[1]), (0,0,255), 3)   
+    cv2.drawContours(img, contours, int(loc[2]), (255,0,0), 3)
     testwrite(img, "AC", imnum, None, None)
 
 ##    yrows, xcols = ao.shape
