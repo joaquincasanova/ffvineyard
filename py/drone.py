@@ -43,6 +43,7 @@ def thresh_adjust_inv(mat):
     cv2.destroyAllWindows()
 
     return thresh, T
+
 def thresh_adjust(mat):
     retval,thresh = cv2.threshold(mat,127,255,cv2.THRESH_BINARY)
     
@@ -217,10 +218,18 @@ while imnum<=264:
     n=2
     
     ksize=(4*sigD+1,4*sigD+1)
-    ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
+    ab = a
+    #ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
     retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
-    ht = thresh_adjust(h)
-    lines = cv2.HoughLines(ht,1,np.pi/180,200)
+    #ht, lt = thresh_adjust(h)
+    lt=245
+    retval,ht = cv2.threshold(h,lt,255,cv2.THRESH_BINARY)
+    hlt = 200
+    lines = cv2.HoughLines(ht,1,np.pi/180,hlt)
+    while lines==None:
+        hlt=hlt-5
+        lines = cv2.HoughLines(ht,1,np.pi/180,hlt)
+    
     for rho,theta in lines[0]:
         aa = np.cos(theta)
         bb = np.sin(theta)
@@ -232,18 +241,18 @@ while imnum<=264:
         y2 = int(y0 - 1000*(aa))
 
         cv2.line(img,(x1,y1),(x2,y2),(255,255,255),2)
-    testwrite(img, "HL", imnum, None, None)
-    fast = cv2.FastFeatureDetector(T)
-    kp = fast.detect(ab,None)
-    af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
+    testwrite(ht, "HT", imnum, None, None)
+    #fast = cv2.FastFeatureDetector(T)
+    #kp = fast.detect(ab,None)
+    #af = cv2.drawKeypoints(ab, kp, color=(255,0,0))
     kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(2*n+1,2*n+1))
     #ao = cv2.morphologyEx(at, cv2.MORPH_OPEN, kernel)
     ad = cv2.dilate(at, kernel, iterations = 4)
     ao = cv2.erode(ad, kernel, iterations = 4)
     testwrite(ab, "AB", imnum, None, None)
     testwrite(at*255, "AT", imnum, None, None)
-    testwrite(af, "AF", imnum, None, None)
-    testwrite(ao*255, "AO", imnum, None, None)
+    #testwrite(af, "AF", imnum, None, None)
+    #testwrite(ao*255, "AO", imnum, None, None)
     area = np.zeros([3,1])
     loc = np.zeros([3,1])
     cx = np.zeros([3,1])
@@ -278,7 +287,7 @@ while imnum<=264:
         M = cv2.moments(contours[int(loc[i])])
         cx[i] = int(M['m10']/M['m00'])
         cy[i] = int(M['m01']/M['m00']) 
-        print area[i], cx[i], cy[i]
+        #print area[i], cx[i], cy[i]
     cv2.drawContours(img, contours, int(loc[0]), (0,255,0), 3)    
     cv2.drawContours(img, contours, int(loc[1]), (0,0,255), 3)   
     cv2.drawContours(img, contours, int(loc[2]), (255,0,0), 3)
