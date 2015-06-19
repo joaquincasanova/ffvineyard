@@ -208,7 +208,7 @@ while imnum<=264:
     h,s,v = cv2.split(hsv)
     l,a,b = cv2.split(lab) 
     a=cv2.equalizeHist(a) 
-    h=cv2.equalizeHist(h)
+    #h=cv2.equalizeHist(h)
     testwrite(a, "A", imnum, None, None)
     testwrite(h, "H", imnum, None, None)
   
@@ -219,11 +219,12 @@ while imnum<=264:
     
     ksize=(4*sigD+1,4*sigD+1)
     ab = a
+    hb = h
     #ab = cv2.adaptiveBilateralFilter(a, ksize, sigD)
+    #hb = cv2.adaptiveBilateralFilter(h, ksize, sigD)
     retval,at = cv2.threshold(ab,t,1,cv2.THRESH_BINARY_INV)
-    #ht, lt = thresh_adjust(h)
-    lt=245
-    retval,ht = cv2.threshold(h,lt,255,cv2.THRESH_BINARY)
+    lt=67
+    retval,ht = cv2.threshold(hb,lt,255,cv2.THRESH_BINARY)
     hlt = 200
     lines = cv2.HoughLines(ht,1,np.pi/180,hlt)
     while lines==None:
