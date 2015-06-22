@@ -1,2 +1,0 @@
-
-g++ -Wall -I/usr/include/  -c ffcv.cpp

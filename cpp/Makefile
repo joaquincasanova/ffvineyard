@@ -1,5 +1,5 @@
-EXEC = ffcv
-SRC = ffcv.cpp
+EXEC = drone
+SRC = drone.cpp
 INC_DIR = /usr/include/ 
 LIB_DIR = /usr/lib/
 LDLIBS = -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml
