@@ -196,6 +196,7 @@ public:
     double a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
     double udzm = uc()*exp(-a*(1-(d+zm())/hc));
     return C/LAI()*sqrt(leaf/udzm);}
+
   double Rnc(double LAI){return ;}//????
   double T(double Tirt, double Ts, double Lsky){
     double eps_c = 0.98;
