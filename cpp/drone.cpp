@@ -196,19 +196,18 @@ public:
     double a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
     double udzm = uc()*exp(-a*(1-(d+zm())/hc));
     return C/LAI()*sqrt(leaf/udzm);}
-
-  double Rnc(double LAI){return ;}//????
-  double T(double Tirt, double Ts, double Lsky){
-    double eps_c = 0.98;
-    double eps_s = 0.98;
-    double eps_i = 0.95;
-    double A = 1-fveg();
-    double B = (1.0-eps_s)*(1.0-fveg())+fveg()*(1.0-eps_c);
-    double Ls = eps_s*boltz*pow(Ts+Tk,4.0);
-    double Lirt = eps_i*boltz*pow(Tirt+Tk,4.0);
-    double tmp=(Lirt-Lsky*B-Ls*A)/eps_c/fveg()/boltz;
-    return pow(tmp,0.25)-Tk;
-  }
+  double tau_c(void){return Fpar*(Wdir_par*tau_c_dir_par()+Wdiff_par*tau_c_diff_par())+Fnir*(Wdir_nir*tau_c_dir_nir()+Wdiff_nir*tau_c_diff_nir());}
+  double tau_c_dir_par(void){return ;}
+  double tau_c_diff_par(void){return ;}
+  double tau_c_dir_nir(void){return ;}
+  double tau_c_diff_nir(void){return ;}
+  double rho_c_par_star(void){return ;}
+  double rho_hor_par(void){return ;}
+  double eta_LAI(double theta_s){return omega(theta_s)/cos(theta_s)*LAI();}
+  double alpha_c(void){return Fpar*(Wdir_par*rho_c_dir_par()+Wdiff_par*rho_c_diff_par())+Fnir*(Wdir_nir*rho_c_dir_nir()+Wdiff_nir*rho_c_diff_nir());}
+  double rho_c_dir_par(void){return ;}
+  double xi_par(double rho_s_par){return ;}
+  
 };
 
 Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
@@ -231,6 +230,14 @@ double Twet(double rc, double d, double z0, double Rnc, double gamma_star){
   double tmp2 = (e_s()-e_a())/(gamma_star+delta());
   return Ta + tmp1 - tmp2;
 }
+
+double Snc(double LAI){return ;}//????
+double Sns(double LAI){return ;}//????
+double Lnc(double LAI){return ;}//????
+double Lns(double LAI){return ;}//????
+double Rnc(double LAI){return ;}//????
+double Rns(double LAI){return ;}//????
+
 
 int main(void){
 
