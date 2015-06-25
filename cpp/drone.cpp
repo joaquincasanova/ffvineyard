@@ -189,7 +189,6 @@ public:
   double fc;//crown fraction
   double ff;//total fraction
   double ke;//extinction
-  double klw;
   double hc;//foliage height m
   double eps_c;//emissivity
   double Kbe(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
@@ -209,7 +208,7 @@ public:
     double n=100;
     double del=pi/2/n;
     double sum=0;
-    for(theta=0,theta<=pi/2,theta+=del){
+    for(theta=0;theta<=pi/2;theta+=del){
       sum += tau_b(theta)*del*2;
     }
     return sum;
