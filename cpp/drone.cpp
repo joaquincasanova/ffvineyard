@@ -68,10 +68,10 @@ public:
   double S(void){
     double tmp1 = (omega_2()-min(omega_1(),omega_2()))*sin(phi())*sin(dec());
     double tmp2 = (sin(omega_2()-min(omega_1(),omega_2())))*cos(phi())*cos(dec());
-    return 12/pi*0.0820*dr()*(tmp1+tmp2);
-  }
+    return 12/pi*4.92*dr()*(tmp1+tmp2)*1000000/3600;
+  }//W/m2
   double fcd(void){
-    return (1.35*S()/o()-0.35);
+    return (1.35*S()/So()-0.35);
   }
   double fcd_beta_lt_03(void){
     int H0 = H;
@@ -81,22 +81,27 @@ public:
     H = H0;
     return tmp;
   }
-  double So(void){
-    return (0.75+(2e-5)*ZZ)*S();}
+  double So(void){return (0.75+(2e-5)*ZZ)*S();}
+  double Sd(void){
+    if(SIn<0){return So()*;}
+    else{return SIn*;}
+  }
+  double Sb(void){
+    if(SIn<0){return So()*;}
+    else{return SIn*;}
+  }
   double Sn(double alb){
     if(SIn<0){return So()*(1.0-alb);}
     else{return SIn*(1.0-alb);}
   }
   double Ln(void){
     if (beta()>=0.3){
-      return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd();
+      return boltz*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd();
     }else{
-      return boltzh*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd_beta_lt_03();
+      return boltz*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a()))*fcd_beta_lt_03();
     }
   }
-  double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
-  double Rn(void){return Sn()-Ln();}//MJ/m2/h
-  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4.0);}
+  double Rn(void){return Sn()-Ln();}//W/m2
 };
 
 Rad::Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double SSIn){
@@ -115,6 +120,7 @@ Rad::~Rad(void){
 
 
 class Soil{
+  double eps_s;
   double T();
   double us(double uc, double hc, double LAI, double leaf, double hc){
     a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
@@ -123,39 +129,50 @@ class Soil{
     double ap = 0.004;
     double bp = 0.012;
     return 1/(ap+bp*us(uc, hc, LAI, leaf, hc));}
+  double Ls(void){return eps_s*boltz*pow(T+Tk,4.0);}
 };
+
+Soil::Soil(void){
+  eps_s=0.98
+}
+
+
+~Soil::Soil(void){
+}
+
 
 class Air{
 public:
-  Air(double, double, double, double, double);
+  Air(double, double, double, double, double,double);
   ~Air(void);
   double Ta;//C
   double RH;//%
   double uz;//m/s
   double z;//m
-  double ZZ;
+  double ZZ;//m
+  double hc;//m
   double u2(void){if(z==2){return uz;}else{return uz*4.87/log(67.8*z-5.42);}} //m/s, m
   double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
   double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
   double gamma(void){return P()*gammac;}//kpa/c
-  double DT(void){return delta()/(delta()+gamma*(1+0.34*u2()));}
-  double PT(void){return gamma/(delta()+gamma*(1+0.34*u2()));}
-  double TT(void){return (900/(Ta+273))*u2();}
   double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
   double e_s(void){return (e_T(Ta));}
   double e_a(void){return (e_T(Ta)*RH/100)/2;}
-  double zm(double hc){return 0.13*hc;}
-  double zh(double hc){return zm(hc)/7;}
-  double d(double hc){return 0.65*hc;}
-  double ra(double hc){return log((z-d(hc))/zm(hc))*log((z-d(hc))/zh(hc))/(vonk*vonk)/rhoa/cp/uz;}//C&N 1998, nutral stability
+  double zm(void){return 0.13*hc;}
+  double zh(void){return zm()/7;}
+  double d(void){return 0.65*hc;}
+  double ra(void){return log((z-d())/zm())*log((z-d())/zh())/(vonk*vonk)/rhoa/cp/uz;}//C&N 1998, nutral stability
+  double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
+  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4.0);}
 };
 
-Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ){
+Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ, double hhc){
   double Ta = TTa;//C
   double RH = RRH;//%
   double uz = uuz;//m/s
   double z = zz;//m
   double ZZ = zzz;//m
+  double hc = hhc;//m
 }
 
 Air::~Air(void){
@@ -172,7 +189,9 @@ public:
   double fc;//crown fraction
   double ff;//total fraction
   double ke;//extinction
+  double klw;
   double hc;//foliage height m
+  double eps_c;//emissivity
   double Kbe(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
   double alb(void){return 0.2;}//albedo from 
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
@@ -184,8 +203,17 @@ public:
   }
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
-  double fveg(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
-  double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
+  double tau_b(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
+  double tau_d(void){
+    double theta=0;
+    double n=100;
+    double del=pi/2/n;
+    double sum=0;
+    for(theta=0,theta<=pi/2,theta+=del){
+      sum += tau_b(theta)*del*2;
+    }
+    return sum;
+  }
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double zm(){return 0.13*hc;}
   double zh(){return zm()/7;}
@@ -196,18 +224,17 @@ public:
     double a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
     double udzm = uc()*exp(-a*(1-(d+zm())/hc));
     return C/LAI()*sqrt(leaf/udzm);}
-  double tau_c(void){return Fpar*(Wdir_par*tau_c_dir_par()+Wdiff_par*tau_c_diff_par())+Fnir*(Wdir_nir*tau_c_dir_nir()+Wdiff_nir*tau_c_diff_nir());}
   double tau_c_dir_par(void){return ;}
   double tau_c_diff_par(void){return ;}
   double tau_c_dir_nir(void){return ;}
   double tau_c_diff_nir(void){return ;}
   double rho_c_par_star(void){return ;}
   double rho_hor_par(void){return ;}
-  double eta_LAI(double theta_s){return omega(theta_s)/cos(theta_s)*LAI();}
+  double eta_LAI(double theta){return omega(theta)/cos(theta)*LAI();}
   double alpha_c(void){return Fpar*(Wdir_par*rho_c_dir_par()+Wdiff_par*rho_c_diff_par())+Fnir*(Wdir_nir*rho_c_dir_nir()+Wdiff_nir*rho_c_diff_nir());}
   double rho_c_dir_par(void){return ;}
   double xi_par(double rho_s_par){return ;}
-  
+  double Lc(void){return eps_c*boltz*pow(T()+Tk,4.0);}
 };
 
 Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
@@ -217,7 +244,9 @@ Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
   ff=ff1;
   hc=hc1;
   ke=0.7;
+  klw=0.95;
   x=2;
+  eps_c=0.98;
 }
 
 Canopy::~Canopy(void){
@@ -231,9 +260,11 @@ double Twet(double rc, double d, double z0, double Rnc, double gamma_star){
   return Ta + tmp1 - tmp2;
 }
 
+double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
+  
 double Snc(double LAI){return ;}//????
 double Sns(double LAI){return ;}//????
-double Lnc(double LAI){return ;}//????
+double Lnc(double LAI){return (eps_c*Lsky+eps_c*Ls-(1-eps_s)*Lc)*(1-tau_d);}//????
 double Lns(double LAI){return ;}//????
 double Rnc(double LAI){return ;}//????
 double Rns(double LAI){return ;}//????
@@ -241,7 +272,7 @@ double Rns(double LAI){return ;}//????
 
 int main(void){
 
-  Air air(Ta, RH, uz, z, ZZ)
+  Air air(Ta, RH, uz, z, ZZ, hc)
   Rad rad(Y, M, D, H, lat, lonm, lonz, SIn)
   Canopy can(row, wc, fc, ff, hc);
    
