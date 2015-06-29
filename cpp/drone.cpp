@@ -183,36 +183,35 @@ public:
   Canopy(double,double,double,double,double);
   ~Canopy(void);
   double x;//ellipsoidal leaf angle parameter
-  double row;//row width m
-  double wc;//foliage width ,
   double leaf;//leaf size
   double fc;//crown fraction
   double ff;//total fraction
   double ke;//extinction
   double hc;//foliage height m
   double eps_c;//emissivity
-  double Kbe(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
+  double Kb(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
   double alb(void){return 0.2;}//albedo from 
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
-  double omega(double thetar){
+  double omega(double theta){
     double D = 1;
     double p = 3.80 - 0.46*D;
-    double tmp1 = omega0()+(1-omega0())*exp(-2.2*pow(thetar,p))
+    double tmp1 = omega0()+(1-omega0())*exp(-2.2*pow(theta,p))
       return omega0()/tmp1;
   }
   double LAI(void){return -omega0()*fc*log(porosity())/ke;}
   double porosity(void){return ff/fc;}
-  double tau_b(double thetar){return 1-exp(-Kb(thetar)*omega(thetar)*LAI());}
+  double tau_bt(double theta, double alpha){return exp(-Kb(theta)*omega(theta)*LAI()*sqrt(alpha));}
   double tau_d(void){
     double theta=0;
     double n=100;
     double del=pi/2/n;
     double sum=0;
     for(theta=0;theta<=pi/2;theta+=del){
-      sum += tau_b(theta)*del*2;
+      sum += tau_bt(theta, 1)*del*2;
     }
     return sum;
   }
+  double fveg(void){return 1-tau_d;}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
   double zm(){return 0.13*hc;}
   double zh(){return zm()/7;}
@@ -223,22 +222,14 @@ public:
     double a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
     double udzm = uc()*exp(-a*(1-(d+zm())/hc));
     return C/LAI()*sqrt(leaf/udzm);}
-  double tau_c_dir_par(void){return ;}
-  double tau_c_diff_par(void){return ;}
-  double tau_c_dir_nir(void){return ;}
-  double tau_c_diff_nir(void){return ;}
-  double rho_c_par_star(void){return ;}
-  double rho_hor_par(void){return ;}
-  double eta_LAI(double theta){return omega(theta)/cos(theta)*LAI();}
-  double alpha_c(void){return Fpar*(Wdir_par*rho_c_dir_par()+Wdiff_par*rho_c_diff_par())+Fnir*(Wdir_nir*rho_c_dir_nir()+Wdiff_nir*rho_c_diff_nir());}
-  double rho_c_dir_par(void){return ;}
-  double xi_par(double rho_s_par){return ;}
-  double Lc(void){return eps_c*boltz*pow(T()+Tk,4.0);}
+  double T(double Ts, double eps_s, double Trad, double eps_rad){
+    double G = boltz*eps_rad*pow(Trad+Tk,4);
+    double F = boltz*eps_s*pow(Ts+Tk,4)*(1-fveg());
+    double E = boltz*eps_c*fveg();
+    return pow((G-F)/E,0.25);}
 };
 
-Canopy::Canopy(double row1, double  wc1, double fc1, double ff1, double hc1){
-  row=row1;
-  wc=wc1;
+Canopy::Canopy( double  wc1, double fc1, double ff1, double hc1){
   fc=fc1;
   ff=ff1;
   hc=hc1;
@@ -253,63 +244,33 @@ Canopy::~Canopy(void){
 
 double gamma_star(double gamma, double ra, double rc){return gamma*(rc/ra);}//c&n 1998//kpa/c
 double Tdry(double d, double z0, double Rnc){return Ta+ra*Rnc/(rhoa*cp);}
-double Twet(double rc, double d, double z0, double Rnc, double gamma_star){
+double Twet(double ra,double rc, double d, double z0, double Rnc, double gamma_star){
   double tmp1 = ra*gamma_star*Rnc/(rhoa*cp*(gamma_star+delta()));
   double tmp2 = (e_s()-e_a())/(gamma_star+delta());
   return Ta + tmp1 - tmp2;
 }
-
+ 
 double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
-  
-double Snc(double LAI){return ;}//????
-double Sns(double LAI){return ;}//????
-double Lnc(double LAI){return (eps_c*Lsky+eps_c*Ls-(1-eps_s)*Lc)*(1-tau_d);}//????
-double Lns(double LAI){return ;}//????
-double Rnc(double LAI){return ;}//????
-double Rns(double LAI){return ;}//????
-
+double Rnc(double LAI, double theta_s, double Rn){return Rn*(1-exp(-0.6*LAI/sqrt(2*cos(theta_s))));}//C&N 99
+double T_not(){
+  double A=-rc*gamma_star()*Rnc()/(delta+gamma_star())/rhoa/cp+rc/ra*(e_s-e_a)/(delta-gamma_star());
+  double B=(Ta/ra)/(1/ra+1/rc+1/rs);
+  double C=(1/rs)/(1/ra+1/rc+1/rs);
+  double D=(1/rc)/(1/ra+1/rc+1/rs);
+  return (Tc*(1-D)+A-B)/C;    
+}
 
 int main(void){
 
   Air air(Ta, RH, uz, z, ZZ, hc)
   Rad rad(Y, M, D, H, lat, lonm, lonz, SIn)
-  Canopy can(row, wc, fc, ff, hc);
-   
-  ifstream ifile;
-  ofstream ofile;
+  Canopy grape(fc, ff, hc);
+  Canopy grass(fc, ff, hc);
 
-  
-  row=3.5;
-  wc=1;
-  fc=.5;
-  ff=.2;
-  hc=1.5;
-  air.z=2;//m
-  air.ZZ=1066;
-  air.lat = 35.15;//deg-latitude
-  air.lonm = -102.13;
-  air.lonz = -90;//deg-longitude of center of time zone
-
-  air.Kc  = can.Kc();
-  air.alb = can.alb();
-
-  ifile.open("../data/072014Bushland.csv",ios_base::in); 
-  ofile.open("../data/test.csv",ios_base::out);
-  ofile << "Date/Time Rn ET Kc LAI Lsky Twey Tdry Tcan CWSI" << std::endl; 
-  string line;
-  int dum;
-  getline(ifile, line);//header
-  while (getline(ifile, line)){
-    sscanf(line.c_str(),"%d/%d/%d %d:%d:%d,%lf,%lf,%lf,%lf",&air.M,&air.D,&air.Y,&air.H,&dum,&dum,&air.RsIn,&air.uz,&air.Ta,&air.RH);  
-    Ts=air.Ta;
-    Tirt=air.Ta;
-    ofile << air.M << '/'<< air.D << '/' << air.Y << ' ' << air.H << ','<< air.Rn();
-    ofile << ','<<  air.ET() << ','<< can.LAI() << ',' << air.Ta<< ','<< air.Tdry(can.d(),can.z0());
-    ofile << ','<< air.Twet(can.rc(), can.d(), can.z0()) << ','<< can.Tcan(Tirt, Ts, air.Lsky()) << ','<<  air.Lsky();
-    ofile << ','<< can.CWSI(can.Tcan(Tirt, Ts, air.Lsky()), air.Tdry(can.d(),can.z0()), air.Twet(can.rc(), can.d(), can.z0()));
-    ofile << ','<< can.fdhc() << std::endl;
-  }
-  ofile.close();
-  ifile.close();
+  //pull from Wunderground
+  //calculate plant, rad, air
+  //calculate T(not canopy) and T(canopy) in fixed point loop
+  //calculate CWSI
   return 0;
+
 }
