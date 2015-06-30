@@ -121,7 +121,6 @@ Rad::~Rad(void){
 
 class Soil{
   double eps_s;
-  double T();
   double us(double uc, double hc, double LAI, double leaf, double hc){
     a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
     return uc*exp(-a*(1-0.05/hc))};
@@ -252,12 +251,34 @@ double Twet(double ra,double rc, double d, double z0, double Rnc, double gamma_s
  
 double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
 double Rnc(double LAI, double theta_s, double Rn){return Rn*(1-exp(-0.6*LAI/sqrt(2*cos(theta_s))));}//C&N 99
-double T_not(){
-  double A=-rc*gamma_star()*Rnc()/(delta+gamma_star())/rhoa/cp+rc/ra*(e_s-e_a)/(delta-gamma_star());
-  double B=(Ta/ra)/(1/ra+1/rc+1/rs);
-  double C=(1/rs)/(1/ra+1/rc+1/rs);
-  double D=(1/rc)/(1/ra+1/rc+1/rs);
-  return (Tc*(1-D)+A-B)/C;    
+double Tsoil(Canopy grapes, Air air, Rad rad, Soil soil, double eps_rad, double Trad){
+  double ra = air.ra();
+  double rc = grapes.rc();
+  double rs = soil.rc(grapes.uc(), grapes.hc, LAI, grapes.leaf, grapes.hc);
+  double LAI = grapes.LAI();
+  double delta = air.delta();
+  double gs = gamma_star(air.gamma(), ra, rc);
+  double A=-rc*gs*Rnc(LAI, rad.theta_s(), rad.Rn())/(delta+gamma_star)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta-gamma_star);
+  double tmp = (1/ra+1/rc+1/rs);
+  double B=(Ta/ra)/tmp;
+  double C=(1/rs)/tmp;
+  double D=(1/rc)/tmp;
+  return (grapes.T(soil.T, soil.eps_s, Trad, eps_rad)*(1-D)+A-B)/C;    
+}
+double Tgrass(Canopy grapes, Air air, Rad rad, Canopy grass, double eps_rad, double Trad, double Tg){
+  double ra = air.ra();
+  double rc = grapes.rc();
+  double rs = grass.rc();
+  double LAI = grapes.LAI();
+  double delta = air.delta();
+  double gs = gamma_star(air.gamma(), ra, rc);
+  double A=-rc*gs*Rnc(LAI, rad.theta_s(), rad.Rn())/(delta+gamma_star)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta-gamma_star);
+  double tmp = (1/ra+1/rc+1/rs);
+  double B=(Ta/ra)/tmp;
+  double C=(1/rs)/tmp;
+  double D=(1/rc)/tmp;
+  return (grapes.T(Tg, grass.eps_c, Trad, eps_rad)*(1-D)+A-B)/C;    
+
 }
 
 int main(void){
@@ -268,6 +289,7 @@ int main(void){
   Canopy grass(fc, ff, hc);
 
   //pull from Wunderground
+  //http://api.wunderground.com/api/eea590fdddcc01bb/conditions/q/pws:KOKCYRIL3.xml
   //calculate plant, rad, air
   //calculate T(not canopy) and T(canopy) in fixed point loop
   //calculate CWSI
