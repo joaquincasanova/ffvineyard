@@ -8,8 +8,10 @@
 #include <fstream>
 #include <string.h>
 #include <math.h>
+#include <rapidxml.hpp>
 
 using namespace std;
+using namespace rapidxml;
 
 double pi = 3.1459265;
 double boltz = 0.00000005670373;// W K-4 m-2
@@ -102,6 +104,7 @@ public:
     }
   }
   double Rn(void){return Sn()-Ln();}//W/m2
+  double Rnc(double LAI){return Rn*(1-exp(-0.6*LAI/sqrt(2*cos(theta_s))));}//C&N 99
 };
 
 Rad::Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double SSIn){
@@ -120,6 +123,9 @@ Rad::~Rad(void){
 
 
 class Soil{
+  Soil(double);
+  ~Soil(void);
+  double Ts;
   double eps_s;
   double us(double uc, double hc, double LAI, double leaf, double hc){
     a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
@@ -131,10 +137,9 @@ class Soil{
   double Ls(void){return eps_s*boltz*pow(T+Tk,4.0);}
 };
 
-Soil::Soil(void){
+Soil::Soil(double){
   eps_s=0.98
 }
-
 
 ~Soil::Soil(void){
 }
@@ -162,7 +167,6 @@ public:
   double d(void){return 0.65*hc;}
   double ra(void){return log((z-d())/zm())*log((z-d())/zh())/(vonk*vonk)/rhoa/cp/uz;}//C&N 1998, nutral stability
   double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
-  double Lsky(void){return eps_atm()*boltz*pow(Ta+Tk,4.0);}
 };
 
 Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ, double hhc){
@@ -179,8 +183,9 @@ Air::~Air(void){
 
 class Canopy{
 public:
-  Canopy(double,double,double,double,double);
+  Canopy(double,double,double,double);
   ~Canopy(void);
+  double Tg;
   double x;//ellipsoidal leaf angle parameter
   double leaf;//leaf size
   double fc;//crown fraction
@@ -225,10 +230,10 @@ public:
     double G = boltz*eps_rad*pow(Trad+Tk,4);
     double F = boltz*eps_s*pow(Ts+Tk,4)*(1-fveg());
     double E = boltz*eps_c*fveg();
-    return pow((G-F)/E,0.25);}
+    return pow((G-F)/E,0.25)-Tk;}
 };
 
-Canopy::Canopy( double  wc1, double fc1, double ff1, double hc1){
+Canopy::Canopy(double fc1, double ff1, double hc1, double Tg1){
   fc=fc1;
   ff=ff1;
   hc=hc1;
@@ -236,6 +241,7 @@ Canopy::Canopy( double  wc1, double fc1, double ff1, double hc1){
   klw=0.95;
   x=2;
   eps_c=0.98;
+  Tg=Tg1;
 }
 
 Canopy::~Canopy(void){
@@ -250,7 +256,7 @@ double Twet(double ra,double rc, double d, double z0, double Rnc, double gamma_s
 }
  
 double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
-double Rnc(double LAI, double theta_s, double Rn){return Rn*(1-exp(-0.6*LAI/sqrt(2*cos(theta_s))));}//C&N 99
+
 double Tsoil(Canopy grapes, Air air, Rad rad, Soil soil, double eps_rad, double Trad){
   double ra = air.ra();
   double rc = grapes.rc();
@@ -272,27 +278,48 @@ double Tgrass(Canopy grapes, Air air, Rad rad, Canopy grass, double eps_rad, dou
   double LAI = grapes.LAI();
   double delta = air.delta();
   double gs = gamma_star(air.gamma(), ra, rc);
-  double A=-rc*gs*Rnc(LAI, rad.theta_s(), rad.Rn())/(delta+gamma_star)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta-gamma_star);
+  double A=-rc*gs*rad.Rnc(LAI)/(delta+gamma_star)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta-gamma_star);
   double tmp = (1/ra+1/rc+1/rs);
   double B=(Ta/ra)/tmp;
   double C=(1/rs)/tmp;
   double D=(1/rc)/tmp;
-  return (grapes.T(Tg, grass.eps_c, Trad, eps_rad)*(1-D)+A-B)/C;    
-
+  return (Tg*(1-D)+A-B)/C;    
 }
 
 int main(void){
 
-  Air air(Ta, RH, uz, z, ZZ, hc)
-  Rad rad(Y, M, D, H, lat, lonm, lonz, SIn)
-  Canopy grape(fc, ff, hc);
-  Canopy grass(fc, ff, hc);
+  
 
-  //pull from Wunderground
-  //http://api.wunderground.com/api/eea590fdddcc01bb/conditions/q/pws:KOKCYRIL3.xml
-  //calculate plant, rad, air
+  /*  Air air(Ta, RH, uz, z, ZZ, hc);
+  Rad rad(Y, M, D, H, lat, lonm, lonz, SIn);
+
+  Canopy grapes(fc, ff, hc, Ta);
+  Canopy grass(fc, ff, hc, Ta);*/
+
+  Air air(Ta, RH, uz, z, ZZ, hc);
+  Rad rad(Y, M, D, H, lat, lonm, lonz, SIn);
+
+  Canopy grapes(fc, ff, hc, Ta);
+  Canopy grass(fc, ff, hc, Ta);
+
+
+  //Soil soil(Ta);
+  Rnc = rad.Rnc(grapes.LAI());
+  grapes.Tg = Twet(air.ra(), grapes.rc(), grapes.d(), grapes.z0(), Rnc, gamma_star(air.ra(),grapes.rc()));
+  double Told = grapes.Tg;
+  double Tnew = grapes.Tg*2;
+  double delmax = .01;
+  int nmax = 100;
+  n = 0;
+  while(abs(Tnew-Told)>delmax && n<nmax){
+    Told = grapes.Tg;
+    grass.Tg = Tgrass(grapes, air, rad, grass, eps_rad, Trad, grapes.Tg);
+    grapes.Tg = grapes.T(grass.Tg, grass.eps_c, Trad, eps_rad);
+    Tnew = grapes.Tg;
+    n++;
+  }
+  //cout << CWSI(
   //calculate T(not canopy) and T(canopy) in fixed point loop
   //calculate CWSI
   return 0;
-
 }
