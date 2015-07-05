@@ -5,13 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <fstream>
 #include <string.h>
 #include <math.h>
-#include <rapidxml.hpp>
 
 using namespace std;
-using namespace rapidxml;
 
 double pi = 3.1459265;
 double boltz = 0.00000005670373;// W K-4 m-2
@@ -286,17 +283,8 @@ double Tgrass(Canopy grapes, Air air, Rad rad, Canopy grass, double eps_rad, dou
   return (Tg*(1-D)+A-B)/C;    
 }
 
-int main(void){
 
-  
-
-  /*  Air air(Ta, RH, uz, z, ZZ, hc);
-  Rad rad(Y, M, D, H, lat, lonm, lonz, SIn);
-
-  Canopy grapes(fc, ff, hc, Ta);
-  Canopy grass(fc, ff, hc, Ta);*/
-
-  Air air(Ta, RH, uz, z, ZZ, hc);
+/*  Air air(Ta, RH, uz, z, ZZ, hc);
   Rad rad(Y, M, D, H, lat, lonm, lonz, SIn);
 
   Canopy grapes(fc, ff, hc, Ta);
@@ -318,8 +306,4 @@ int main(void){
     Tnew = grapes.Tg;
     n++;
   }
-  //cout << CWSI(
-  //calculate T(not canopy) and T(canopy) in fixed point loop
-  //calculate CWSI
-  return 0;
-}
+*/

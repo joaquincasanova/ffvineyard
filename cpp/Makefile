@@ -1,5 +1,5 @@
-EXEC = wunderground #drone
-SRC = wunderground.cpp #drone.cpp
+EXEC = test
+SRC = test.cpp  
 INC_DIR = /usr/include/ 
 LIB_DIR = /usr/lib/
 LDLIBS = -ltinyxml2 #-lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml
