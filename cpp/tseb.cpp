@@ -21,7 +21,7 @@ double rhoa = 1.205; //kg/m3
 //asce etsz
 class Rad{
 public:
-  Rad(int, int, int, int, double, double, double, double);
+  Rad(int, int, int, int, double, double, double, double, double);
   ~Rad(void);
   int D;
   int M;
@@ -144,7 +144,7 @@ Soil::Soil(double){
 
 class Air{
 public:
-  Air(double, double, double, double, double,double);
+  Air(double, double, double, double, double,double,double);
   ~Air(void);
   double Ta;//C
   double RH;//%
@@ -152,9 +152,13 @@ public:
   double z;//m
   double ZZ;//m
   double hc;//m
+  double Pmb;//mb
   double u2(void){if(z==2){return uz;}else{return uz*4.87/log(67.8*z-5.42);}} //m/s, m
   double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
-  double P(void){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}//kpa, 
+  double P(void){
+    if (Pmb < 0){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}
+    else{return Pmb*0.1;}
+  }//kpa, 
   double gamma(void){return P()*gammac;}//kpa/c
   double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
   double e_s(void){return (e_T(Ta));}
@@ -166,13 +170,14 @@ public:
   double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
 };
 
-Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ, double hhc){
+Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ, double hhc, double PPmb){
   double Ta = TTa;//C
   double RH = RRH;//%
   double uz = uuz;//m/s
   double z = zz;//m
   double ZZ = zzz;//m
   double hc = hhc;//m
+  double Pmb = PPmb;mb
 }
 
 Air::~Air(void){

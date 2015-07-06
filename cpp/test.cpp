@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string.h>
 #include <math.h>
 #include <json.h>
@@ -16,6 +17,7 @@ string APIKEY = "eea590fdddcc01bb";
 string pws = "KOKCYRIL3";
 string command = "wget http://api.wunderground.com/api/" + APIKEY + "/conditions/q/pws:" + pws + ".json";
 string file = "pws:" + pws + ".json";
+
 int main(void){
 
   char tmp[1024];
@@ -27,15 +29,59 @@ int main(void){
   ifstream in(tmp);
   Json::Value wunder;
   in >> wunder;
+  stringstream  ss;
+  string SInStr = wunder["current_observation"]["solarradiation"].asString();
+  ss << SInStr;
+  double SIn;
+  ss >> SIn;
+  ss.clear();
+  double Ta = wunder["current_observation"]["temp_c"].asDouble();
+  string PmbStr =  wunder["current_observation"]["pressure_mb"].asString();
+  ss << PmbStr;
+  double Pmb;
+  ss >> Pmb;
+  ss.clear();
+  double uz = wunder["current_observation"]["wind_kph"].asDouble();
+  uz = uz/60/60*1000;
+  string RHStr = wunder["current_observation"]["relative_humidity"].asString();
+  ss << RHStr;
+  double RH;
+  ss >> RH;
+  ss.clear();
+  string ZZStr = wunder["current_observation"]["display_location"]["elevation"].asString();
+  ss << ZZStr;
+  double ZZ;
+  ss >> ZZ;
+  ss.clear();
+  string lonmStr = wunder["current_observation"]["display_location"]["longitude"].asString();
+  ss << lonmStr;
+  double lonm;
+  ss >> lonm;
+  ss.clear();
+  string latStr =  wunder["current_observation"]["display_location"]["latitude"].asString();
+  ss << latStr;
+  double lat;
+  ss >> lat;
+  ss.clear();
+  string localtimeStr = wunder["current_observation"]["local_time_rfc822"].asString();
+  char tmp1[24];
+  strcpy(tmp1, localtimeStr.c_str());
+  
+  struct tm tm;
+  time_t localtime;
 
-  cout << wunder["current_observation"]["solarradiation"] << std::endl;
-  cout << wunder["current_observation"]["temp_c"] << std::endl;
-  cout << wunder["current_observation"]["pressure_mb"] << std::endl;
-  cout << wunder["current_observation"]["wind_kph"] << std::endl;
-  cout << wunder["current_observation"]["relative_humidity"] << std::endl;
-  cout << wunder["current_observation"]["display_location"]["elevation"] << std::endl;
-  cout << wunder["current_observation"]["display_location"]["longitude"] << std::endl;
-  cout << wunder["current_observation"]["display_location"]["latitude"] << std::endl;
-  cout << wunder["current_observation"]["local_time_rfc822"] << std::endl;
+  strptime(tmp,"%a, %e %h %Y %H:%M:%S %z",&tm);
+
+  localtime = mktime(&tm);
+  cout << localtime << std::endl;
+  cout << SIn << std::endl;
+  cout << Ta << std::endl;
+  cout << Pmb << std::endl;
+  cout << uz << std::endl;
+  cout << RH << std::endl;
+  cout << ZZ << std::endl;
+  cout << lonm << std::endl;
+  cout << lat << std::endl;
+
   return 0;
 }
