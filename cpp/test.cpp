@@ -4,8 +4,8 @@
 #include <opencv2/ml/ml.hpp> 
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <string.h>
 #include <math.h>
@@ -30,6 +30,22 @@ int main(void){
   Json::Value wunder;
   in >> wunder;
   stringstream  ss;
+
+  string ZZStr = wunder["current_observation"]["display_location"]["elevation"].asString();
+  ss << ZZStr;
+  double ZZ;
+  ss >> ZZ;
+  ss.clear();
+  string lonmStr = wunder["current_observation"]["display_location"]["longitude"].asString();
+  ss << lonmStr;
+  double lonm;
+  ss >> lonm;
+  ss.clear();
+  string latStr =  wunder["current_observation"]["display_location"]["latitude"].asString();
+  ss << latStr;
+  double lat;
+  ss >> lat;
+  ss.clear();
   string SInStr = wunder["current_observation"]["solarradiation"].asString();
   ss << SInStr;
   double SIn;
@@ -48,21 +64,7 @@ int main(void){
   double RH;
   ss >> RH;
   ss.clear();
-  string ZZStr = wunder["current_observation"]["display_location"]["elevation"].asString();
-  ss << ZZStr;
-  double ZZ;
-  ss >> ZZ;
-  ss.clear();
-  string lonmStr = wunder["current_observation"]["display_location"]["longitude"].asString();
-  ss << lonmStr;
-  double lonm;
-  ss >> lonm;
-  ss.clear();
-  string latStr =  wunder["current_observation"]["display_location"]["latitude"].asString();
-  ss << latStr;
-  double lat;
-  ss >> lat;
-  ss.clear();
+
   string localtimeStr = wunder["current_observation"]["local_time_rfc822"].asString();
   char tmp1[24];
   strcpy(tmp1, localtimeStr.c_str());
@@ -70,10 +72,10 @@ int main(void){
   struct tm tm;
   time_t localtime;
 
-  strptime(tmp,"%a, %e %h %Y %H:%M:%S %z",&tm);
+  if(strptime(tmp1,"%a, %b %D %Y %H:%M:%S %z",&tm)==NULL){cout << "oops" << std::endl;}
 
   localtime = mktime(&tm);
-  cout << localtime << std::endl;
+  cout << localtimeStr << localtime << std::endl;
   cout << SIn << std::endl;
   cout << Ta << std::endl;
   cout << Pmb << std::endl;
@@ -82,6 +84,6 @@ int main(void){
   cout << ZZ << std::endl;
   cout << lonm << std::endl;
   cout << lat << std::endl;
-
+  cout << tm.tm_year << std::endl;
   return 0;
 }
