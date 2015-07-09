@@ -19,14 +19,10 @@ string command = "wget http://api.wunderground.com/api/" + APIKEY + "/conditions
 string file = "pws:" + pws + ".json";
 
 int main(void){
-
-  char tmp[1024];
-  strcpy(tmp, command.c_str());
   //pull from Wunderground
   int ret = system("rm *.json*");
-  ret = system(tmp);
-  strcpy(tmp, file.c_str());
-  ifstream in(tmp);
+  ret = system(command.c_str());
+  ifstream in(file.c_str());
   Json::Value wunder;
   in >> wunder;
   stringstream  ss;
@@ -66,24 +62,56 @@ int main(void){
   ss.clear();
 
   string localtimeStr = wunder["current_observation"]["local_time_rfc822"].asString();
-  char tmp1[24];
-  strcpy(tmp1, localtimeStr.c_str());
-  
   struct tm tm;
+  memset(&tm, 0, sizeof(struct tm));
   time_t localtime;
 
-  if(strptime(tmp1,"%a, %b %D %Y %H:%M:%S %z",&tm)==NULL){cout << "oops" << std::endl;}
+  if(!strptime(localtimeStr.c_str(),"%a, %0d %b %Y %T",&tm)){cout << "oops, can't parse date" << std::endl;}
+  int Y =tm.tm_year+1900;
+  int D =tm.tm_mday;
+  int M =tm.tm_mon+1;
+  int H = tm.tm_hour;
 
   localtime = mktime(&tm);
-  cout << localtimeStr << localtime << std::endl;
-  cout << SIn << std::endl;
-  cout << Ta << std::endl;
-  cout << Pmb << std::endl;
-  cout << uz << std::endl;
-  cout << RH << std::endl;
-  cout << ZZ << std::endl;
-  cout << lonm << std::endl;
-  cout << lat << std::endl;
-  cout << tm.tm_year << std::endl;
+  cout << localtimeStr << localtime << endl;
+  cout << SIn << endl;
+  cout << Ta << endl;
+  cout << Pmb << endl;
+  cout << uz << endl;
+  cout << RH << endl;
+  cout << ZZ << endl;
+  cout << lonm << endl;
+  cout << lat << endl;
+  cout <<  Y << " " << M << " " << D << " " << H << endl;
+
+  double z = 2;
+  double hc = 1.8;
+  double fc = .5;
+  double ff = .3;
+  double Tirt = ;
+
+  Air air(Ta, RH, uz, z, ZZ, hc);
+  Rad rad(Y, M, D, H, lat, lonm, lonm, SIn);
+
+  Canopy grapes(fc, ff, hc, Ta);
+  Canopy grass(1, .1, .1, Ta);
+
+  /*
+  //Soil soil(Ta);
+  Rnc = rad.Rnc(grapes.LAI());
+  grapes.Tg = Twet(air.ra(), grapes.rc(), grapes.d(), grapes.z0(), Rnc, gamma_star(air.ra(),grapes.rc()));
+  double Told = grapes.Tg;
+  double Tnew = grapes.Tg*2;
+  double delmax = .01;
+  int nmax = 100;
+  n = 0;
+  while(abs(Tnew-Told)>delmax && n<nmax){
+    Told = grapes.Tg;
+    grass.Tg = Tgrass(grapes, air, rad, grass, eps_rad, Trad, grapes.Tg);
+    grapes.Tg = grapes.T(grass.Tg, grass.eps_c, Trad, eps_rad);
+    Tnew = grapes.Tg;
+    n++;
+  }
+  */
   return 0;
 }
