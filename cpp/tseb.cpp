@@ -1,15 +1,7 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/ml/ml.hpp>
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <string.h>
 #include <math.h>
-#include <fstream>
-#include <sstream>
-#include <json.h>
 
 using namespace std;
 
@@ -20,16 +12,11 @@ double Tk = 273.16;
 double gammac = 0.000665;
 double cp = 1005; //J/kg/K
 double rhoa = 1.205; //kg/m3
-
-string APIKEY = "eea590fdddcc01bb";
-string pws = "KOKCYRIL3";
-string command = "wget http://api.wunderground.com/api/" + APIKEY + "/conditions/q/pws:" + pws + ".json";
-string file = "pws:" + pws + ".json";
  
 //asce etsz
 class Rad{
 public:
-  Rad(int, int, int, int, double, double, double, double, double);
+  Rad(int, int, int, int, double, double, double, double);
   ~Rad(void);
   int D;
   int M;
@@ -89,14 +76,6 @@ public:
     return tmp;
   }
   double So(void){return (0.75+(2e-5)*ZZ)*S();}
-  double Sd(void){
-    if(SIn<0){return So()*;}
-    else{return SIn*;}
-  }
-  double Sb(void){
-    if(SIn<0){return So()*;}
-    else{return SIn*;}
-  }
   double Sn(double alb){
     if(SIn<0){return So()*(1.0-alb);}
     else{return SIn*(1.0-alb);}
@@ -109,7 +88,7 @@ public:
     }
   }
   double Rn(void){return Sn()-Ln();}//W/m2
-  double Rnc(double LAI){return Rn*(1-exp(-0.6*LAI/sqrt(2*cos(theta_s))));}//C&N 99
+  double Rnc(double LAI){return Rn*(1-exp(-0.6*LAI/sqrt(2*cos(beta))));}//C&N 99
 };
 
 Rad::Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double SSIn){
@@ -125,30 +104,6 @@ Rad::Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz
 
 Rad::~Rad(void){
 }
-
-
-class Soil{
-  Soil(double);
-  ~Soil(void);
-  double Ts;
-  double eps_s;
-  double us(double uc, double hc, double LAI, double leaf, double hc){
-    a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
-    return uc*exp(-a*(1-0.05/hc))};
-  double rs(double uc, double hc, double LAI, double leaf, double hc){
-    double ap = 0.004;
-    double bp = 0.012;
-    return 1/(ap+bp*us(uc, hc, LAI, leaf, hc));}
-  double Ls(void){return eps_s*boltz*pow(T+Tk,4.0);}
-};
-
-Soil::Soil(double){
-  eps_s=0.98
-}
-
-~Soil::Soil(void){
-}
-
 
 class Air{
 public:
@@ -185,7 +140,7 @@ Air::Air(double TTa, double RRH, double uuz, double zz, double ZZZ, double hhc, 
   double z = zz;//m
   double ZZ = zzz;//m
   double hc = hhc;//m
-  double Pmb = PPmb;mb
+  double Pmb = PPmb;//mb
 }
 
 Air::~Air(void){
@@ -227,14 +182,14 @@ public:
   }
   double fveg(void){return 1-tau_d;}
   double Kc(void){return 0.115+0.235*LAI();}//Ayars paper 2005
-  double zm(){return 0.13*hc;}
-  double zh(){return zm()/7;}
-  double d(){return 0.65*hc;}
+  double zm(void){return 0.13*hc;}
+  double zh(void){return zm()/7;}
+  double d(void){return 0.65*hc;}
   double uc(double uz, double z){return uz*(log((hc-d())/zm()))/(log((z-d())/zm()));}
-  double rc(void){
+  double rc(double uz, double z){
     double C = 90;//sqrt(s)/m grace 1981 via campbell norman 95
     double a = 0.28*pow(LAI,2.0/3.0)*pow(hc/leaf,1.0/3.0);
-    double udzm = uc()*exp(-a*(1-(d+zm())/hc));
+    double udzm = uc(uz,z)*exp(-a*(1-(d()+zm())/hc));
     return C/LAI()*sqrt(leaf/udzm);}
   double T(double Ts, double eps_s, double Trad, double eps_rad){
     double G = boltz*eps_rad*pow(Trad+Tk,4);
@@ -248,7 +203,6 @@ Canopy::Canopy(double fc1, double ff1, double hc1, double Tg1){
   ff=ff1;
   hc=hc1;
   ke=0.7;
-  klw=0.95;
   x=2;
   eps_c=0.98;
   Tg=Tg1;
@@ -256,41 +210,69 @@ Canopy::Canopy(double fc1, double ff1, double hc1, double Tg1){
 
 Canopy::~Canopy(void){
 }
+class Soil{
+public:
+  Soil(double);
+  ~Soil(void);
+  double Ts;
+  double eps_s;
+  double us(Canopy can, Air air){
+    double a = 0.28*pow(can.LAI(),0.66666)*pow(can.hc/can.leaf,0.333333);
+    return can.uc(air.uz,air.z)*exp(-a*(1-0.05/can.hc));
+  }
+  double rs(Canopy can, Air air){
+    double ap = 0.004;
+    double bp = 0.012;
+    return 1/(ap+bp*us(can, air));}
+  double Ls(void){return eps_s*boltz*pow(Ts+Tk,4.0);}
+};
+
+Soil::Soil(double TTs){
+  Ts=TTs;
+  eps_s=0.98;
+}
+
+~Soil::Soil(void){
+}
 
 double gamma_star(double gamma, double ra, double rc){return gamma*(rc/ra);}//c&n 1998//kpa/c
-double Tdry(double d, double z0, double Rnc){return Ta+ra*Rnc/(rhoa*cp);}
-double Twet(double ra,double rc, double d, double z0, double Rnc, double gamma_star){
-  double tmp1 = ra*gamma_star*Rnc/(rhoa*cp*(gamma_star+delta()));
-  double tmp2 = (e_s()-e_a())/(gamma_star+delta());
-  return Ta + tmp1 - tmp2;
+double Tdry(Air air, double Rnc){return air.Ta+air.ra()*Rnc/(rhoa*cp);}
+double Twet(Air air, Canopy grapes, double Rnc){
+  double ra = air.ra();
+  double rc = grapes.rc(air.uz, air.z);
+  double delta = air.delta();
+  double gs = gamma_star(air.gamma(), ra, rc);
+  double tmp1 = ra*gs*Rnc/(rhoa*cp*(gs+delta));
+  double tmp2 = (air.e_s()-air.e_a())/(gs+delta);
+  return air.Ta + tmp1 - tmp2;
 }
  
 double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
 
 double Tsoil(Canopy grapes, Air air, Rad rad, Soil soil, double eps_rad, double Trad){
   double ra = air.ra();
-  double rc = grapes.rc();
-  double rs = soil.rc(grapes.uc(), grapes.hc, LAI, grapes.leaf, grapes.hc);
+  double rc = grapes.rc(air.uz, air.z);
   double LAI = grapes.LAI();
+  double rs = soil.rs(grapes, air);
   double delta = air.delta();
   double gs = gamma_star(air.gamma(), ra, rc);
-  double A=-rc*gs*Rnc(LAI, rad.theta_s(), rad.Rn())/(delta+gamma_star)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta-gamma_star);
+  double A=-rc*gs*rad.Rnc(LAI)/(delta+gs)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta+gs);
   double tmp = (1/ra+1/rc+1/rs);
-  double B=(Ta/ra)/tmp;
+  double B=(air.Ta/ra)/tmp;
   double C=(1/rs)/tmp;
   double D=(1/rc)/tmp;
-  return (grapes.T(soil.T, soil.eps_s, Trad, eps_rad)*(1-D)+A-B)/C;    
+  return (grapes.T(soil.Ts, soil.eps_s, Trad, eps_rad)*(1-D)+A-B)/C;    
 }
 double Tgrass(Canopy grapes, Air air, Rad rad, Canopy grass, double eps_rad, double Trad, double Tg){
   double ra = air.ra();
-  double rc = grapes.rc();
-  double rs = grass.rc();
+  double rc = grapes.rc(air.uz, air.z);
+  double rs = grass.rc(air.uz, air.z);
   double LAI = grapes.LAI();
   double delta = air.delta();
   double gs = gamma_star(air.gamma(), ra, rc);
-  double A=-rc*gs*rad.Rnc(LAI)/(delta+gamma_star)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta-gamma_star);
+  double A=-rc*gs*rad.Rnc(LAI)/(delta+gs)/rhoa/cp+rc/ra*(air.e_s()-air.e_a())/(delta+gs);
   double tmp = (1/ra+1/rc+1/rs);
-  double B=(Ta/ra)/tmp;
+  double B=(air.Ta/ra)/tmp;
   double C=(1/rs)/tmp;
   double D=(1/rc)/tmp;
   return (Tg*(1-D)+A-B)/C;    

@@ -1,5 +1,5 @@
 EXEC = test
-SRC = test.cpp tseb.cpp 
+SRC = test.cpp 
 INC_DIR = /usr/include/ 
 LIB_DIR = /usr/lib/
 LDLIBS = -ljsoncpp -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml
