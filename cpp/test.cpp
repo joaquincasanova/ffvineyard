@@ -22,9 +22,12 @@ double gammac = 0.000665;
 double cp = 1005; //J/kg/K
 double rhoa = 1.205; //kg/m3
 
+string jcAPIKEY = "eea590fdddcc01bb";
+string OKpws = "KOKCYRIL3";
+
 class Wunder{
 public:
-  Wunder(void);
+  Wunder(string APIKEY, string pws);
   ~Wunder(void);
   double SIn;
   double Ta;
@@ -38,14 +41,12 @@ public:
   int M;
   int D;
   int H;
-private:
-  string APIKEY = "eea590fdddcc01bb";
-  string pws = "KOKCYRIL3";
-  string command = "wget http://api.wunderground.com/api/" + APIKEY + "/conditions/q/pws:" + pws + ".json";
-  string file = "pws:" + pws + ".json";
 };
 
-Wunder::Wunder(void){
+Wunder::Wunder(string APIKEY, string pws){
+  string command = "wget http://api.wunderground.com/api/" + APIKEY + "/conditions/q/pws:" + pws + ".json";
+  string file = "pws:" + pws + ".json";
+
   //pull from Wunderground
   int ret = system("rm *.json*");
   ret = system(command.c_str());
@@ -100,7 +101,6 @@ Wunder::Wunder(void){
   int H = tm.tm_hour;
 
   localtime = mktime(&tm);
-  cout << localtimeStr << localtime << endl;
   cout << SIn << endl;
   cout << Ta << endl;
   cout << Pmb << endl;
@@ -150,7 +150,7 @@ Air::Air(Wunder wun, double zz, double hhc){
   z = zz;//m
   hc = hhc;//m
   Pmb = wun.Pmb;//mb
-  ZZ = wu.ZZ;//m
+  ZZ = wun.ZZ;//m
 }
 
 Air::~Air(void){
@@ -159,7 +159,7 @@ Air::~Air(void){
 
 class Rad{
 public:
-  Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double SSIn, double ZZZ, double ee_a, double TTa, double aalb, double LLAI);
+  Rad(Wunder wun, double ee_a, double aalb, double LLAI);
   ~Rad(void);
   int D;
   int M;
@@ -239,20 +239,22 @@ public:
   double Rnc(void){return Rn()*(1-exp(-0.6*LAI/sqrt(2*cos(Beta()))));}//C&N 99
 };
 
-Rad::Rad(int YY, int MM, int DD, int HH, double llat, double llonm, double llonz, double SSIn, double ZZZ, double ee_a, double TTa, double aalb, double LLAI){
-  D=DD;
-  M=MM;
-  Y=YY;
-  H=HH;
-  lat=llat;//deg
-  lonm=llonm;//deg-longitude of measurement site
-  lonz=llonz;//deg
-  SIn=SSIn;//MJ/m2/h
-  ZZ=ZZZ;
+Rad::Rad(Wunder wun, double ee_a, double aalb, double LLAI){
+  D=wun.D;
+  M=wun.M;
+  Y=wun.Y;
+  H=wun.H;
+  lat=wun.lat;//deg
+  lonm=wun.lonm;//deg-longitude of measurement site
+  lonz=wun.lonm;//deg-long of timezone - not right
+  SIn=wun.SIn;//MJ/m2/h
+  ZZ=wun.ZZ;
   e_a=ee_a;
-  Ta=TTa;
+  Ta=wun.Ta;
   alb=aalb;
   LAI=LLAI;
+  cout << D << "/" << M << "/" << Y << endl;
+  cout << LAI << endl;
 }
 
 Rad::~Rad(void){
@@ -409,13 +411,13 @@ int main(void){
   double ff = .3;
   double Trad = 23;
   double eps_rad = 0.98;
-  //  Canopy grapes(fc, ff, hc, Ta, leaf);
-  //Canopy grass(1, .1, .1, Ta, .05);
-  Wunder cyril;
+  Wunder cyril(jcAPIKEY, OKpws);
+  Canopy grapes(fc, ff, hc, cyril.Ta, leaf);
+  Canopy grass(1, .1, .1, cyril.Ta, .05);
 
-  /*
-  Air air(Ta, RH, uz, z, hc, Pmb, ZZ);
-  Rad rad(Y, M, D, H, lat, lonm, lonm, SIn, ZZ, air.e_a(), Ta, grapes.alb(), grapes.LAI());
+  
+  Air air(cyril, z, hc);
+  Rad rad(cyril, air.e_a(), grapes.alb(), grapes.LAI());
 
   //Soil soil(Ta);
   cout << rad.Beta() << endl;
@@ -425,7 +427,7 @@ int main(void){
   grapes.Tg = Twet(air, grapes, rad.Rnc());
   cout << grapes.Tg << endl;
   cout << Tdry(air, rad.Rnc()) << endl;
-
+  /*
   double Told = grapes.Tg;
   double Tnew = grapes.Tg*2;
   double delmax = .01;
