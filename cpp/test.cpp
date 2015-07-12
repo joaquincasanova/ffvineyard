@@ -27,8 +27,9 @@ string OKpws = "KOKCYRIL3";
 
 class Wunder{
 public:
-  Wunder(string APIKEY, string pws);
+  Wunder(string x, string y):APIKEY(x), pws(y){}
   ~Wunder(void);
+  int pull(void);
   double SIn;
   double Ta;
   double Pmb;
@@ -41,9 +42,11 @@ public:
   int M;
   int D;
   int H;
+  string APIKEY;
+  string pws;
 };
 
-Wunder::Wunder(string APIKEY, string pws){
+int Wunder::pull(void){
   string command = "wget http://api.wunderground.com/api/" + APIKEY + "/conditions/q/pws:" + pws + ".json";
   string file = "pws:" + pws + ".json";
 
@@ -57,35 +60,29 @@ Wunder::Wunder(string APIKEY, string pws){
 
   string ZZStr = wunder["current_observation"]["display_location"]["elevation"].asString();
   ss << ZZStr;
-  double ZZ;
   ss >> ZZ;
   ss.clear();
   string lonmStr = wunder["current_observation"]["display_location"]["longitude"].asString();
   ss << lonmStr;
-  double lonm;
   ss >> lonm;
   ss.clear();
   string latStr =  wunder["current_observation"]["display_location"]["latitude"].asString();
   ss << latStr;
-  double lat;
   ss >> lat;
   ss.clear();
   string SInStr = wunder["current_observation"]["solarradiation"].asString();
   ss << SInStr;
-  double SIn;
   ss >> SIn;
   ss.clear();
-  double Ta = wunder["current_observation"]["temp_c"].asDouble();
+  Ta = wunder["current_observation"]["temp_c"].asDouble();
   string PmbStr =  wunder["current_observation"]["pressure_mb"].asString();
   ss << PmbStr;
-  double Pmb;
   ss >> Pmb;
   ss.clear();
-  double uz = wunder["current_observation"]["wind_kph"].asDouble();
+  uz = wunder["current_observation"]["wind_kph"].asDouble();
   uz = uz/60/60*1000;
   string RHStr = wunder["current_observation"]["relative_humidity"].asString();
   ss << RHStr;
-  double RH;
   ss >> RH;
   ss.clear();
 
@@ -95,10 +92,10 @@ Wunder::Wunder(string APIKEY, string pws){
   time_t localtime;
 
   if(!strptime(localtimeStr.c_str(),"%a, %0d %b %Y %T",&tm)){cout << "oops, can't parse date" << std::endl;}
-  int Y =tm.tm_year+1900;
-  int D =tm.tm_mday;
-  int M =tm.tm_mon+1;
-  int H = tm.tm_hour;
+  Y =tm.tm_year+1900;
+  D =tm.tm_mday;
+  M =tm.tm_mon+1;
+  H = tm.tm_hour;
 
   localtime = mktime(&tm);
   cout << SIn << endl;
@@ -118,7 +115,7 @@ Wunder::~Wunder(void){
 
 class Air{
 public:
-  Air(Wunder wun, double z, double hc);
+  Air(Wunder &wun, double z, double hc);
   ~Air(void);
   double Ta;//C
   double RH;//%
@@ -143,7 +140,7 @@ public:
   double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
 };
 
-Air::Air(Wunder wun, double zz, double hhc){
+Air::Air(Wunder &wun, double zz, double hhc){
   Ta = wun.Ta;//C
   RH = wun.RH;//%
   uz = wun.uz;//m/s
@@ -159,7 +156,7 @@ Air::~Air(void){
 
 class Rad{
 public:
-  Rad(Wunder wun, double ee_a, double aalb, double LLAI);
+  Rad(Wunder &wun,double ee_a, double aalb, double LLAI);
   ~Rad(void);
   int D;
   int M;
@@ -239,7 +236,7 @@ public:
   double Rnc(void){return Rn()*(1-exp(-0.6*LAI/sqrt(2*cos(Beta()))));}//C&N 99
 };
 
-Rad::Rad(Wunder wun, double ee_a, double aalb, double LLAI){
+Rad::Rad(Wunder &wun, double ee_a, double aalb, double LLAI){
   D=wun.D;
   M=wun.M;
   Y=wun.Y;
@@ -254,6 +251,8 @@ Rad::Rad(Wunder wun, double ee_a, double aalb, double LLAI){
   alb=aalb;
   LAI=LLAI;
   cout << D << "/" << M << "/" << Y << endl;
+  cout << wun.D << "/" << wun.M << "/" << wun.Y << endl;
+
   cout << LAI << endl;
 }
 
@@ -412,6 +411,10 @@ int main(void){
   double Trad = 23;
   double eps_rad = 0.98;
   Wunder cyril(jcAPIKEY, OKpws);
+  cyril.pull();
+
+  cout << cyril.D << endl;
+  
   Canopy grapes(fc, ff, hc, cyril.Ta, leaf);
   Canopy grass(1, .1, .1, cyril.Ta, .05);
 
