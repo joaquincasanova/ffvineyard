@@ -28,7 +28,7 @@ string OKpws = "KOKCYRIL3";
 class Wunder{
 public:
   Wunder(string x, string y):APIKEY(x), pws(y){}
-  ~Wunder(void);
+  ~Wunder(void){};
   int pull(void);
   double SIn;
   double Ta;
@@ -108,15 +108,10 @@ int Wunder::pull(void){
   cout << lat << endl;
   cout <<  Y << " " << M << " " << D << " " << H << endl;
 }
-
-Wunder::~Wunder(void){
-} 
 //asce etsz
 
 class Air{
 public:
-  Air(Wunder &wun, double z, double hc);
-  ~Air(void);
   double Ta;//C
   double RH;//%
   double uz;//m/s
@@ -124,6 +119,8 @@ public:
   double ZZ;//m
   double hc;//m
   double Pmb;//mb
+  Air(Wunder &wun, double z, double hc): Ta(wun.Ta), RH(wun.RH), uz(wun.uz), z(z), hc(hc), Pmb(wun.Pmb), ZZ(wun.ZZ){};
+  ~Air(void){};
   double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
   double P(void){
     if (Pmb < 0){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}
@@ -136,28 +133,15 @@ public:
   double zm(void){return 0.13*hc;}
   double zh(void){return zm()/7;}
   double d(void){return 0.65*hc;}
-  double ra(void){return log((z-d())/zm())*log((z-d())/zh())/(vonk*vonk)/rhoa/cp/uz;}//C&N 1998, nutral stability
-  double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
+  double ra(void){
+    double tmp1 = log((z-d())/zm())*log((z-d())/zh());
+    return tmp1/(vonk*vonk)/uz;
+  }//C&N 1998, nutral stability
+  //double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
 };
-
-Air::Air(Wunder &wun, double zz, double hhc){
-  Ta = wun.Ta;//C
-  RH = wun.RH;//%
-  uz = wun.uz;//m/s
-  z = zz;//m
-  hc = hhc;//m
-  Pmb = wun.Pmb;//mb
-  ZZ = wun.ZZ;//m
-}
-
-Air::~Air(void){
-}
-
 
 class Rad{
 public:
-  Rad(Wunder &wun,double ee_a, double aalb, double LLAI);
-  ~Rad(void);
   int D;
   int M;
   int Y;
@@ -171,6 +155,8 @@ public:
   double Ta;//C
   double alb;
   double LAI;
+  Rad(Wunder &wun,double e_a, double alb, double LAI): D(wun.D), M(wun.M), Y(wun.Y), H(wun.H), lat(wun.lat), lonm(wun.lonm), lonz(wun.lonm), SIn(wun.SIn), ZZ(wun.ZZ), e_a(e_a), Ta(wun.Ta), alb(alb), LAI(LAI){};
+  ~Rad(void){};
   int J(void){return D-32+(int)(275*M/9)+2*(int)(3/(M+1))+(int)(M/100-(Y%4)/4+0.975);}
   double sc(void){
     double b=2*pi*(J()-81)/364;
@@ -236,33 +222,8 @@ public:
   double Rnc(void){return Rn()*(1-exp(-0.6*LAI/sqrt(2*cos(Beta()))));}//C&N 99
 };
 
-Rad::Rad(Wunder &wun, double ee_a, double aalb, double LLAI){
-  D=wun.D;
-  M=wun.M;
-  Y=wun.Y;
-  H=wun.H;
-  lat=wun.lat;//deg
-  lonm=wun.lonm;//deg-longitude of measurement site
-  lonz=wun.lonm;//deg-long of timezone - not right
-  SIn=wun.SIn;//MJ/m2/h
-  ZZ=wun.ZZ;
-  e_a=ee_a;
-  Ta=wun.Ta;
-  alb=aalb;
-  LAI=LLAI;
-  cout << D << "/" << M << "/" << Y << endl;
-  cout << wun.D << "/" << wun.M << "/" << wun.Y << endl;
-
-  cout << LAI << endl;
-}
-
-Rad::~Rad(void){
-}
-
 class Canopy{
 public:
-  Canopy(double ffc, double fff, double hhc, double lleaf, double TTg);
-  ~Canopy(void);
   double Tg;
   double x;//ellipsoidal leaf angle parameter
   double leaf;//leaf size
@@ -271,6 +232,8 @@ public:
   double ke;//extinction
   double hc;//foliage height m
   double eps_c;//emissivity
+  Canopy(double fc, double ff, double hc, double leaf, double Tg): fc(fc), ff(ff), hc(hc), leaf(leaf), Tg(Tg){cout << hc << " " << "hc" << endl;};
+  ~Canopy(void){};
   double Kb(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
   double alb(void){return 0.2;}//albedo from 
   double omega0(void){return (1-porosity())*log(1-ff)/log(porosity())/ff;}//Fuentes 2008
@@ -311,30 +274,16 @@ public:
     return pow((G-F)/E,0.25)-Tk;}
 };
 
-Canopy::Canopy(double ffc, double fff, double hhc, double lleaf, double TTg){
-  fc=ffc;
-  ff=fff;
-  hc=hhc;
-  ke=0.7;
-  x=2;
-  eps_c=0.98;
-  Tg=TTg;
-  leaf=lleaf;
-}
-
-Canopy::~Canopy(void){
-}
-
 class Soil{
 public:
-  Soil(double TTs, double LLAI, double hhc, double lleaf, double uuc);
-  ~Soil(void);
   double Ts;
   double eps_s;
   double LAI;
   double hc;
   double leaf;
   double uc;
+  Soil(double Ts, double LAI, double hc, double leaf, double uc):Ts(Ts), LAI(LAI), hc(hc), leaf(leaf), uc(uc){};
+  ~Soil(void){};
   double us(void){
     double a = 0.28*pow(LAI,2/3)*pow(hc/leaf,1/3);
     return uc*exp(-a*(1-0.05/hc));
@@ -346,21 +295,9 @@ public:
   double Ls(void){return eps_s*boltz*pow(Ts+Tk,4.0);}
 };
 
-Soil::Soil(double TTs, double LLAI, double hhc, double lleaf, double uuc){
-  Ts=TTs;
-  LAI=LLAI;
-  hc=hhc;
-  leaf=lleaf;
-  uc=uuc;
-  eps_s=0.98;
-}
-
-Soil::~Soil(void){
-}
-
-double gamma_star(double gamma, double ra, double rc){return gamma*(rc/ra);}//c&n 1998//kpa/c
-double Tdry(Air air, double Rnc){return air.Ta+air.ra()*Rnc/(rhoa*cp);}
-double Twet(Air air, Canopy grapes, double Rnc){
+double gamma_star(double gamma, double ra, double rc){return gamma*(1+rc/ra);}//c&n 1998//kpa/c
+double Tdry(Air &air, double Rnc){return air.Ta+air.ra()*Rnc/(rhoa*cp);}
+double Twet(Air &air, Canopy &grapes, double Rnc){
   double ra = air.ra();
   double rc = grapes.rc(air.uz, air.z);
   double delta = air.delta();
@@ -372,7 +309,7 @@ double Twet(Air air, Canopy grapes, double Rnc){
  
 double CWSI(double Tcan, double Tdry, double Twet){return (Tcan-Twet)/(Tdry-Twet);}
 
-double Tsoil(Canopy grapes, Air air, Rad rad, Soil soil, double eps_rad, double Trad){
+double Tsoil(Canopy &grapes, Air &air, Rad &rad, Soil &soil, double eps_rad, double Trad){
   double ra = air.ra();
   double rc = grapes.rc(air.uz, air.z);
   double LAI = grapes.LAI();
@@ -386,7 +323,7 @@ double Tsoil(Canopy grapes, Air air, Rad rad, Soil soil, double eps_rad, double 
   double D=(1/rc)/tmp;
   return (grapes.T(soil.Ts, soil.eps_s, Trad, eps_rad)*(1-D)+A-B)/C;    
 }
-double Tgrass(Canopy grapes, Air air, Rad rad, Canopy grass, double eps_rad, double Trad){
+double Tgrass(Canopy &grapes, Air &air, Rad &rad, Canopy &grass, double eps_rad, double Trad){
   double ra = air.ra();
   double rc = grapes.rc(air.uz, air.z);
   double rs = grass.rc(air.uz, air.z);
@@ -412,8 +349,6 @@ int main(void){
   double eps_rad = 0.98;
   Wunder cyril(jcAPIKEY, OKpws);
   cyril.pull();
-
-  cout << cyril.D << endl;
   
   Canopy grapes(fc, ff, hc, cyril.Ta, leaf);
   Canopy grass(1, .1, .1, cyril.Ta, .05);
@@ -423,9 +358,8 @@ int main(void){
   Rad rad(cyril, air.e_a(), grapes.alb(), grapes.LAI());
 
   //Soil soil(Ta);
-  cout << rad.Beta() << endl;
+  cout << grapes.porosity() << endl;
   cout << grapes.LAI() << endl;
-  cout << rad.Rnc() << endl;
   
   grapes.Tg = Twet(air, grapes, rad.Rnc());
   cout << grapes.Tg << endl;
