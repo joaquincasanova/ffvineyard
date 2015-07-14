@@ -105,9 +105,7 @@ int Wunder::pull(void){
   cout << RH << endl;
   cout << ZZ << endl;
   cout << lonm << endl;
-  cout << lat << endl;
-  cout <<  Y << " " << M << " " << D << " " << H << endl;
-}
+  cout << lat << endl;}
 //asce etsz
 
 class Air{
@@ -232,7 +230,7 @@ public:
   double ke;//extinction
   double hc;//foliage height m
   double eps_c;//emissivity
-  Canopy(double fc, double ff, double hc, double leaf, double Tg): fc(fc), ff(ff), hc(hc), leaf(leaf), Tg(Tg){cout << hc << " " << "hc" << endl;};
+  Canopy(double fc, double ff, double hc, double Tg, double leaf): fc(fc), ff(ff), hc(hc), Tg(Tg), leaf(leaf){ke = 0.5; eps_c = 0.98;};
   ~Canopy(void){};
   double Kb(double thetar){return sqrt(x*x+pow(tan(thetar),1))/(x+1.774*pow(x+1.182,-0.733));}//Campbell and Norman 98
   double alb(void){return 0.2;}//albedo from 
@@ -282,7 +280,7 @@ public:
   double hc;
   double leaf;
   double uc;
-  Soil(double Ts, double LAI, double hc, double leaf, double uc):Ts(Ts), LAI(LAI), hc(hc), leaf(leaf), uc(uc){};
+  Soil(double Ts, double LAI, double hc, double leaf, double uc):Ts(Ts), LAI(LAI), hc(hc), leaf(leaf), uc(uc){eps_s = 0.98;};
   ~Soil(void){};
   double us(void){
     double a = 0.28*pow(LAI,2/3)*pow(hc/leaf,1/3);
@@ -342,29 +340,24 @@ int main(void){
 
   double z = 2;
   double hc = 1.8;
-  double leaf = 7.5;
+  double leaf = 0.075;
   double fc = .5;
   double ff = .3;
-  double Trad = 23;
   double eps_rad = 0.98;
   Wunder cyril(jcAPIKEY, OKpws);
   cyril.pull();
   
   Canopy grapes(fc, ff, hc, cyril.Ta, leaf);
   Canopy grass(1, .1, .1, cyril.Ta, .05);
-
   
   Air air(cyril, z, hc);
   Rad rad(cyril, air.e_a(), grapes.alb(), grapes.LAI());
 
   //Soil soil(Ta);
-  cout << grapes.porosity() << endl;
-  cout << grapes.LAI() << endl;
   
   grapes.Tg = Twet(air, grapes, rad.Rnc());
-  cout << grapes.Tg << endl;
-  cout << Tdry(air, rad.Rnc()) << endl;
-  /*
+  double Trad = (Tdry(air, rad.Rnc())+grapes.Tg)/2;
+  
   double Told = grapes.Tg;
   double Tnew = grapes.Tg*2;
   double delmax = .01;
@@ -378,7 +371,8 @@ int main(void){
     grapes.Tg = grapes.T(grass.Tg, grass.eps_c, Trad, eps_rad);
     Tnew = grapes.Tg;
     n++;
+    cout<<grass.Tg << endl;
   }
-  */
+  
   return 0;
 }
