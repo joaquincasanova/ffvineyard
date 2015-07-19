@@ -75,6 +75,7 @@ int Wunder::pull(void){
   ss >> SIn;
   ss.clear();
   Ta = wunder["current_observation"]["temp_c"].asDouble();
+  Ta+=Tk;
   string PmbStr =  wunder["current_observation"]["pressure_mb"].asString();
   ss << PmbStr;
   ss >> Pmb;
@@ -110,7 +111,7 @@ int Wunder::pull(void){
 
 class Air{
 public:
-  double Ta;//C
+  double Ta;//K
   double RH;//%
   double uz;//m/s
   double z;//m
@@ -119,13 +120,13 @@ public:
   double Pmb;//mb
   Air(Wunder &wun, double z, double hc): Ta(wun.Ta), RH(wun.RH), uz(wun.uz), z(z), hc(hc), Pmb(wun.Pmb), ZZ(wun.ZZ){};
   ~Air(void){};
-  double delta(void){return 4098*(0.6108*exp(17.27*Ta/(Ta+237.7)))/pow(Ta+273.3,2);} //kpa/C
+  double delta(void){return 4098*(0.6108*exp(17.27*(Ta-Tk)/((Ta-Tk)+237.7)))/pow((Ta-Tk)+273.3,2);} //kpa/K
   double P(void){
     if (Pmb < 0){return 101.3*pow(((293-0.0065*ZZ)/293),5.26);}
     else{return Pmb*0.1;}
   }//kpa, 
-  double gamma(void){return P()*gammac;}//kpa/c
-  double e_T(double T){return 0.6108*exp(17.27*T/(T+237.3));}
+  double gamma(void){return P()*gammac;}//kpa/K
+  double e_T(double T){return 0.6108*exp(17.27*(T-Tk)/((T-Tk)+237.3));}
   double e_s(void){return (e_T(Ta));}
   double e_a(void){return (e_T(Ta)*RH/100)/2;}
   double zm(void){return 0.13*hc;}
@@ -135,7 +136,7 @@ public:
     double tmp1 = log((z-d())/zm())*log((z-d())/zh());
     return tmp1/(vonk*vonk)/uz;
   }//C&N 1998, nutral stability
-  //double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta+Tk));}
+  //double eps_atm(void){return 0.70+0.000595*e_a()*exp(1500/(Ta);}
 };
 
 class Rad{
@@ -150,7 +151,7 @@ public:
   double ZZ;//m
   double SIn;//MJ/m2/h
   double e_a;//kpa
-  double Ta;//C
+  double Ta;//K
   double alb;
   double LAI;
   Rad(Wunder &wun,double e_a, double alb, double LAI): D(wun.D), M(wun.M), Y(wun.Y), H(wun.H), lat(wun.lat), lonm(wun.lonm), lonz(wun.lonm), SIn(wun.SIn), ZZ(wun.ZZ), e_a(e_a), Ta(wun.Ta), alb(alb), LAI(LAI){};
@@ -211,9 +212,9 @@ public:
   }
   double Ln(void){
     if (Beta()>=0.3){
-      return boltz*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a))*fcd();
+      return boltz*pow(Ta,4)*(0.34-0.14*sqrt(e_a))*fcd();
     }else{
-      return boltz*pow(Ta+Tk,4)*(0.34-0.14*sqrt(e_a))*fcd_beta_lt_03();
+      return boltz*pow(Ta,4)*(0.34-0.14*sqrt(e_a))*fcd_beta_lt_03();
     }
   }
   double Rn(void){return Sn()-Ln();}//W/m2
@@ -266,10 +267,10 @@ public:
     double udzm = uc(uz,z)*exp(-a*(1-(d()+zm())/hc));
     return C/LAI()*sqrt(leaf/udzm);}
   double T(double Ts, double eps_s, double Trad, double eps_rad){
-    double G = boltz*eps_rad*pow(Trad+Tk,4);
-    double F = boltz*eps_s*pow(Ts+Tk,4)*(1-fveg());
+    double G = boltz*eps_rad*pow(Trad,4);
+    double F = boltz*eps_s*pow(Ts,4)*(1-fveg());
     double E = boltz*eps_c*fveg();
-    return pow((G-F)/E,0.25)-Tk;}
+    return pow((G-F)/E,0.25);}
 };
 
 class Soil{
@@ -290,7 +291,7 @@ public:
     double ap = 0.004;
     double bp = 0.012;
     return 1/(ap+bp*us());}
-  double Ls(void){return eps_s*boltz*pow(Ts+Tk,4.0);}
+  double Ls(void){return eps_s*boltz*pow(Ts,4.0);}
 };
 
 double gamma_star(double gamma, double ra, double rc){return gamma*(1+rc/ra);}//c&n 1998//kpa/c
@@ -343,7 +344,7 @@ int main(void){
   double leaf = 0.075;
   double fc = .5;
   double ff = .3;
-  double eps_rad = 0.98;
+  double eps_rad = 0.95;
   Wunder cyril(jcAPIKEY, OKpws);
   cyril.pull();
   
@@ -362,9 +363,12 @@ int main(void){
   double Tnew = grapes.Tg*2;
   double delmax = .01;
 
-  int nmax = 100;
+  int nmax = 10;
   int n = 0;
-
+  
+  cout<<grass.Tg << endl;
+  cout<<grapes.Tg << endl;
+  
   while(abs(Tnew-Told)>delmax && n<nmax){
     Told = grapes.Tg;
     grass.Tg = Tgrass(grapes, air, rad, grass, eps_rad, Trad);
@@ -372,6 +376,7 @@ int main(void){
     Tnew = grapes.Tg;
     n++;
     cout<<grass.Tg << endl;
+    cout<<grapes.Tg << endl;
   }
   
   return 0;

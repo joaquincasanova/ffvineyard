@@ -1,3 +1,174 @@
+
+def opening_adjust(mat):
+
+    kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+
+    cv2.namedWindow('open',cv2.WINDOW_NORMAL)
+    opening = cv2.morphologyEx(mat, cv2.MORPH_OPEN, kernel)
+    cv2.createTrackbar('n','open',0,50,nothing)
+    while(1):
+        cv2.imshow('open',opening)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+        n = cv2.getTrackbarPos('n','open')
+        kernel =  cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(2*n+1,2*n+1))
+        opening = cv2.morphologyEx(mat, cv2.MORPH_OPEN, kernel)
+        opening = opening/255
+
+    cv2.destroyAllWindows()
+
+    return opening, n
+
+def thresh_adjust_inv(mat):
+    retval,thresh = cv2.threshold(mat,127,255,cv2.THRESH_BINARY_INV)
+    
+    cv2.namedWindow('thresh',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('T','thresh',0,255,nothing)
+    while(1):
+        cv2.imshow('thresh',thresh)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        T = cv2.getTrackbarPos('T','thresh')
+        retval,thresh = cv2.threshold(mat,T,255,cv2.THRESH_BINARY_INV)    
+
+    retval,thresh = cv2.threshold(mat,T,1,cv2.THRESH_BINARY_INV)    
+    cv2.destroyAllWindows()
+
+    return thresh, T
+
+def thresh_adjust(mat):
+    retval,thresh = cv2.threshold(mat,127,255,cv2.THRESH_BINARY)
+    
+    cv2.namedWindow('thresh',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('T','thresh',0,255,nothing)
+    while(1):
+        cv2.imshow('thresh',thresh)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        T = cv2.getTrackbarPos('T','thresh')
+        retval,thresh = cv2.threshold(mat,T,255,cv2.THRESH_BINARY)    
+
+    retval,thresh = cv2.threshold(mat,T,1,cv2.THRESH_BINARY)    
+    cv2.destroyAllWindows()
+
+    return thresh, T
+
+def fast_adjust(mat):
+    fast = cv2.FastFeatureDetector(50)
+    kp = fast.detect(mat,None)
+    fast_im = cv2.drawKeypoints(mat, kp, color=(255,0,0))
+
+    cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('T','keypoints',0,255,nothing)
+    while(1):
+        cv2.imshow('keypoints',fast_im)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        T = cv2.getTrackbarPos('T','keypoints')
+
+        fast = cv2.FastFeatureDetector(T)
+        kp = fast.detect(mat,None)
+        fast_im = cv2.drawKeypoints(mat, kp, color=(255,0,0))
+
+    cv2.destroyAllWindows()
+
+    return fast_im, T
+    
+def canny_adjust(mat):
+    edges = cv2.Canny(mat,25,50,5)
+
+    cv2.namedWindow('edges',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('n','edges',0,25,nothing)
+    cv2.createTrackbar('MinVal','edges',0,1000,nothing)
+    cv2.createTrackbar('MaxVal','edges',0,1000,nothing)
+    while(1):
+        cv2.imshow('edges',edges)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+            # get current positions of four trackbars
+        n = cv2.getTrackbarPos('n','edges')
+        minval = cv2.getTrackbarPos('MinVal','edges')
+        maxval = cv2.getTrackbarPos('MaxVal','edges')
+            
+        edges = cv2.Canny(mat,minval,maxval,n)
+
+    cv2.destroyAllWindows()
+
+    return edges, n, minval, maxval
+
+def bilat_adjust(mat):
+
+    bilat = cv2.bilateralFilter(mat, -1, 7, 7)
+
+    cv2.namedWindow('bilat',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('sigC','bilat',0,100,nothing)
+    cv2.createTrackbar('sigD','bilat',0,100,nothing)
+    while(1):
+        cv2.imshow('bilat',bilat)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+  
+        sigC = cv2.getTrackbarPos('sigC','bilat')
+        sigD = cv2.getTrackbarPos('sigD','bilat')
+        bilat = cv2.bilateralFilter(mat, -1, sigC, sigD)
+
+    cv2.destroyAllWindows()
+
+    return bilat, sigC, sigD
+
+def abf_adjust(mat):
+
+    bilat = cv2.adaptiveBilateralFilter(mat, (29,29), 7)
+
+    cv2.namedWindow('bilat',cv2.WINDOW_NORMAL)
+    cv2.createTrackbar('sigD','bilat',0,30,nothing)
+    while(1):
+        cv2.imshow('bilat',bilat)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
+
+        sigD = cv2.getTrackbarPos('sigD','bilat')
+        ksize=(4*sigD+1,4*sigD+1)
+        bilat = cv2.adaptiveBilateralFilter(mat, ksize, sigD)
+
+    cv2.destroyAllWindows()
+
+    return bilat, sigD
+
+def nothing(x):
+    pass
+
+def normalize(x):
+    y=(x-np.min(x))/(np.max(x)-np.min(x))*255
+    return y
+
+def localSD(mat, n):
+    
+    mat=np.float32(mat)
+    mu = cv2.blur(mat,(n,n))
+    mdiff=mu-mat
+    mat2=cv2.blur(np.float64(mdiff*mdiff),(n,n))
+    sd = np.float32(cv2.sqrt(mat2))
+    sdn=normalize(sd)
+
+    return sdn
+
+
 ##    
 ##    yrows, xcols = gray.shape
 ##    xsize = 1000
